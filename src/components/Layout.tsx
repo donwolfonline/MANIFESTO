@@ -74,13 +74,13 @@ export function Layout({
       </a>
 
       <Preloader
-        durationMs={900}
+        durationMs={450}
         label={`loading ~/${meta.filename}`}
         onComplete={onPreloaderComplete}
       />
       <CustomCursor readSectionSelector="#read" readLabel="read" />
       <FilmGrain />
-      <ReadingProgress height={2} color="var(--color-accent)" />
+      <ReadingProgress height={2} color="var(--color-accent)" smooth={false} />
 
       <Header
         filename={meta.filename}

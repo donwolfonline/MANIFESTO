@@ -13,7 +13,7 @@ export interface PreloaderProps {
 }
 
 export function Preloader({
-  durationMs = 900,
+  durationMs = 450,
   label = 'loading ~/manifesto.md',
   onComplete,
 }: PreloaderProps) {
@@ -73,7 +73,7 @@ export function Preloader({
           completedRef.current = true;
           setVisible(false);
           onCompleteRef.current?.();
-        }, 140);
+        }, 60);
       }
     };
 
@@ -101,7 +101,7 @@ export function Preloader({
           initial={{ y: '0%' }}
           exit={{ y: '-100%' }}
           transition={{
-            duration: 0.78,
+            duration: 0.52,
             ease: EASE_OUT_EXPO,
           }}
         >

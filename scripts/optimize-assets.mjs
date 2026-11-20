@@ -5,6 +5,7 @@ import sharp from 'sharp';
 const root = process.cwd();
 const sourceJpg = path.join(root, 'src/assets/human-job.jpg');
 const outputWebp = path.join(root, 'src/assets/human-job.webp');
+const outputGrain = path.join(root, 'src/assets/grain.webp');
 const outputOg = path.join(root, 'public/og-image.png');
 
 async function main() {
@@ -80,16 +81,37 @@ async function main() {
     .png({ compressionLevel: 9, palette: false })
     .toFile(outputOg);
 
-  const [webpStat, jpgStat, ogStat, ogMeta] = await Promise.all([
+  // 4. Generate tiny 128x128 static monochrome film-grain WebP tile
+  const grainSize = 128;
+  const rawGrain = Buffer.alloc(grainSize * grainSize * 4);
+  let seed = 133742;
+  for (let i = 0; i < grainSize * grainSize; i++) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const v = (seed >>> 24) & 0xff;
+    const offset = i * 4;
+    rawGrain[offset] = v;
+    rawGrain[offset + 1] = v;
+    rawGrain[offset + 2] = v;
+    rawGrain[offset + 3] = 255;
+  }
+  await sharp(rawGrain, {
+    raw: { width: grainSize, height: grainSize, channels: 4 },
+  })
+    .webp({ quality: 55, effort: 6 })
+    .toFile(outputGrain);
+
+  const [webpStat, jpgStat, ogStat, grainStat, ogMeta] = await Promise.all([
     fs.stat(outputWebp),
     fs.stat(sourceJpg),
     fs.stat(outputOg),
+    fs.stat(outputGrain),
     sharp(outputOg).metadata(),
   ]);
 
   console.log(`Source dimensions: ${metadata.width}x${metadata.height}`);
   console.log(`WebP written: ${(webpStat.size / 1024).toFixed(1)} KB`);
   console.log(`JPG optimized: ${(jpgStat.size / 1024).toFixed(1)} KB`);
+  console.log(`Grain tile written: ${(grainStat.size / 1024).toFixed(1)} KB`);
   console.log(
     `OG image written: ${ogMeta.width}x${ogMeta.height} (${(ogStat.size / 1024).toFixed(1)} KB)`,
   );

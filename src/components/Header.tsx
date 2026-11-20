@@ -27,20 +27,30 @@ export function Header({
 }: HeaderProps) {
   const { scrollTo } = useLenis();
   const { scrollY, scrollYProgress } = useScroll();
-  const [percent, setPercent] = useState(0);
   const [scrolled, setScrolled] = useState(viewMode === 'raw');
+  const percentRef = useRef<HTMLSpanElement | null>(null);
   const indexButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    const syncState = (latestY: number) => {
-      setScrolled(viewMode === 'raw' || latestY > 24);
+    const syncScrolled = (latestY: number) => {
+      const next = viewMode === 'raw' || latestY > 24;
+      setScrolled((prev) => (prev === next ? prev : next));
     };
 
-    syncState(scrollY.get());
-    const unsubY = scrollY.on('change', syncState);
-    const unsubProgress = scrollYProgress.on('change', (latest) => {
-      setPercent(Math.round(latest * 100));
-    });
+    const syncPercent = (latestProgress: number) => {
+      if (!percentRef.current) return;
+      const pct = Math.round(latestProgress * 100);
+      const formatted = `${String(pct).padStart(2, '0')}%`;
+      if (percentRef.current.textContent !== formatted) {
+        percentRef.current.textContent = formatted;
+      }
+    };
+
+    syncScrolled(scrollY.get());
+    syncPercent(scrollYProgress.get());
+
+    const unsubY = scrollY.on('change', syncScrolled);
+    const unsubProgress = scrollYProgress.on('change', syncPercent);
 
     return () => {
       unsubY();
@@ -62,16 +72,15 @@ export function Header({
 
   return (
     <header
-      className="fixed top-0 right-0 left-0 transition-[background-color,border-color,backdrop-filter]"
+      className="fixed top-0 right-0 left-0 transition-[background-color,border-color]"
       style={{
         height: 'var(--header-height)',
         zIndex: 'var(--z-header)',
         backgroundColor: scrolled ? 'var(--color-bg-glass)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(12px)' : 'none',
         borderBottom: scrolled
           ? '1px solid var(--color-border)'
           : '1px solid transparent',
-        transitionDuration: 'var(--duration-base)',
+        transitionDuration: 'var(--duration-fast)',
         transitionTimingFunction: 'var(--ease-editorial)',
       }}
     >
@@ -100,6 +109,7 @@ export function Header({
 
         <div className="flex items-center gap-4 sm:gap-6">
           <span
+            ref={percentRef}
             aria-live="off"
             className="hidden md:inline-block font-mono tabular-nums tracking-[var(--tracking-mono)]"
             style={{
@@ -107,7 +117,7 @@ export function Header({
               color: 'var(--color-text-muted)',
             }}
           >
-            {String(percent).padStart(2, '0')}%
+            00%
           </span>
 
           <div
@@ -160,7 +170,6 @@ export function Header({
             </button>
           </div>
 
-          {/* "watch index"-style trigger button opening the circle-wipe overlay */}
           <button
             ref={indexButtonRef}
             type="button"

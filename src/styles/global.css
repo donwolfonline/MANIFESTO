@@ -68,17 +68,17 @@ html.lenis body {
   overflow: hidden;
 }
 
-/* Full-viewport subtle film grain overlay (~4% opacity) */
+/* Full-viewport subtle film grain overlay (~4% opacity, static GPU tile) */
 .film-grain {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
   pointer-events: none;
   z-index: var(--z-grain);
   opacity: var(--grain-opacity);
-  mix-blend-mode: overlay;
+  background-repeat: repeat;
+  background-size: 128px 128px;
+  contain: strict;
+  transform: translateZ(0);
 }
 
 /* Editorial container utility */

@@ -69,37 +69,40 @@ export function CustomCursor({
   useEffect(() => {
     if (!active) return;
 
+    let lastTarget: EventTarget | null = null;
+
     const handlePointerMove = (event: PointerEvent) => {
       if (event.pointerType === 'touch') {
-        setVisible(false);
+        setVisible((prev) => (prev ? false : prev));
         return;
       }
 
       mouseX.set(event.clientX);
       mouseY.set(event.clientY);
-      setVisible(true);
+      setVisible((prev) => (prev ? prev : true));
+
+      // Avoid repeated closest() DOM traversals when hovering the same node
+      if (event.target === lastTarget) return;
+      lastTarget = event.target;
 
       const target = event.target as HTMLElement | null;
       if (!target) {
-        setVariant('default');
+        setVariant((prev) => (prev === 'default' ? prev : 'default'));
         return;
       }
 
+      let nextVariant: CursorVariant = 'default';
       if (
         target.closest(
           'a, button, [role="button"], input, textarea, select, [data-cursor="link"]',
         )
       ) {
-        setVariant('link');
-        return;
+        nextVariant = 'link';
+      } else if (target.closest(readSectionSelector)) {
+        nextVariant = 'read';
       }
 
-      if (target.closest(readSectionSelector)) {
-        setVariant('read');
-        return;
-      }
-
-      setVariant('default');
+      setVariant((prev) => (prev === nextVariant ? prev : nextVariant));
     };
 
     const handlePointerDown = () => setPressed(true);

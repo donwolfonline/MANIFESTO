@@ -52,7 +52,7 @@ function ManifestoPage() {
         id: 'statements',
         index: '01',
         label: 'Six Statements',
-        meta: '300dvh Scroll',
+        meta: '240dvh Scroll',
       },
       {
         id: 'transition',

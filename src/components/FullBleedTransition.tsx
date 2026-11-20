@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   motion,
   useReducedMotion,
@@ -39,6 +39,33 @@ export function FullBleedTransition({
   const sectionRef = useRef<HTMLElement | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
+  // Warm-fetch and decode the tiny 32KB WebP during idle time after initial
+  // render so entering the pinned transition never stutters mid-scroll.
+  useEffect(() => {
+    const preloadSrc = webpSrc || imageSrc;
+    if (!preloadSrc) return;
+
+    const warmDecode = () => {
+      const preloader = new Image();
+      preloader.decoding = 'async';
+      preloader.src = preloadSrc;
+      if (typeof preloader.decode === 'function') {
+        preloader.decode().catch(() => {});
+      }
+    };
+
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(warmDecode, { timeout: 1500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(warmDecode, 600);
+    return () => window.clearTimeout(timer);
+  }, [webpSrc, imageSrc]);
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end end'],
@@ -57,7 +84,7 @@ export function FullBleedTransition({
     const insetY = 15 * (1 - t);
     const insetX = 10 * (1 - t);
     const radius = 12 * (1 - t);
-    return `inset(${insetY.toFixed(2)}% ${insetX.toFixed(2)}% round ${radius.toFixed(2)}px)`;
+    return `inset(${insetY.toFixed(1)}% ${insetX.toFixed(1)}% round ${radius.toFixed(1)}px)`;
   });
 
   const darkOverlayStyle = {
@@ -115,14 +142,14 @@ export function FullBleedTransition({
       id="transition"
       ref={sectionRef}
       aria-label={`${prefix} ${heading}`}
-      className="relative h-[220dvh] w-full"
+      className="relative h-[175dvh] w-full"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       {/* Pinned 100dvh viewport stage: holds heading centered during clip-path/scale transition, then releases */}
       <div className="sticky top-0 h-dvh w-full flex items-center justify-center overflow-hidden">
         {/* Expanding clipped image frame */}
         <motion.div
-          className="absolute inset-0 overflow-hidden will-change-[clip-path]"
+          className="absolute inset-0 overflow-hidden"
           style={{ clipPath }}
         >
           <picture className="block w-full h-full">
@@ -134,6 +161,7 @@ export function FullBleedTransition({
               height={imageHeight}
               loading="lazy"
               decoding="async"
+              fetchPriority="low"
               className="w-full h-full object-cover select-none will-change-transform"
               style={{ scale: imageScale }}
               draggable={false}

@@ -116,23 +116,20 @@ function StatementSlide({
   const y = useTransform(
     progress,
     isLast ? [segStart, enterEnd, 1] : [segStart, enterEnd, holdEnd, segEnd],
-    isLast ? [40, 0, 0] : [40, 0, 0, -28],
+    isLast ? [36, 0, 0] : [36, 0, 0, -24],
   );
 
-  const blurPx = useTransform(
+  // Pure GPU-composited scale replaces per-frame CSS blur() for locked 60-120fps scrolling
+  const scale = useTransform(
     progress,
     isLast ? [segStart, enterEnd, 1] : [segStart, enterEnd, holdEnd, segEnd],
-    isLast ? [8, 0, 0] : [8, 0, 0, 6],
-  );
-
-  const filter = useTransform(blurPx, (value) =>
-    value <= 0.05 ? 'blur(0px)' : `blur(${value.toFixed(2)}px)`,
+    isLast ? [0.965, 1, 1] : [0.965, 1, 1, 0.985],
   );
 
   return (
     <motion.p
       aria-hidden={!isActive}
-      className="col-start-1 row-start-1 m-0 max-w-[16ch] font-display font-normal text-center will-change-[transform,opacity,filter]"
+      className="col-start-1 row-start-1 m-0 max-w-[16ch] font-display font-normal text-center"
       style={{
         fontSize: 'clamp(2.1rem, 8.5vw, 8.25rem)',
         lineHeight: 0.98,
@@ -140,7 +137,8 @@ function StatementSlide({
         color: 'var(--color-text)',
         opacity,
         y,
-        filter,
+        scale,
+        willChange: isActive ? 'transform, opacity' : 'auto',
         pointerEvents: isActive ? 'auto' : 'none',
       }}
     >
@@ -228,7 +226,7 @@ export function StatementSequence({
       id="statements"
       ref={sectionRef}
       aria-labelledby="statements-heading"
-      className="relative h-[300dvh]"
+      className="relative h-[240dvh]"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <h2 id="statements-heading" className="sr-only">

@@ -343,7 +343,7 @@ function ReadingItemCard({ item, registerRef }: ReadingItemCardProps) {
         registerRef(item.number, node);
       }}
       data-item-number={item.number}
-      className="scroll-mt-28 sm:scroll-mt-32"
+      className="scroll-mt-28 sm:scroll-mt-32 [contain:layout_style]"
     >
       {/* Mobile-only outlined number placed directly above the title */}
       <div
@@ -391,47 +391,12 @@ export function ReadingSection({ items }: ReadingSectionProps) {
     }
   }, []);
 
-  // Track active item via IntersectionObserver + viewport position tiebreaker
+  // Pure asynchronous IntersectionObserver active-item tracking (zero per-frame scroll layout thrashing)
   useEffect(() => {
     const nodes = Array.from(itemRefs.current.values());
     if (nodes.length === 0) return;
 
-    const visibleSet = new Set<number>();
-
-    const updateActive = () => {
-      const anchorY = window.innerHeight * 0.34;
-
-      if (visibleSet.size > 0) {
-        let bestNumber: number | null = null;
-        let smallestDistance = Number.POSITIVE_INFINITY;
-
-        visibleSet.forEach((num) => {
-          const el = itemRefs.current.get(num);
-          if (!el) return;
-          const dist = Math.abs(el.getBoundingClientRect().top - anchorY);
-          if (dist < smallestDistance) {
-            smallestDistance = dist;
-            bestNumber = num;
-          }
-        });
-
-        if (bestNumber !== null) {
-          setActiveNumber(bestNumber);
-        }
-        return;
-      }
-
-      // Fallback when scrolling fast between items: pick last item above anchor
-      let fallback = items[0]?.number ?? 1;
-      for (const item of items) {
-        const el = itemRefs.current.get(item.number);
-        if (!el) continue;
-        if (el.getBoundingClientRect().top <= anchorY + 40) {
-          fallback = item.number;
-        }
-      }
-      setActiveNumber(fallback);
-    };
+    const visibleRatios = new Map<number, number>();
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -441,26 +406,39 @@ export function ReadingSection({ items }: ReadingSectionProps) {
           );
           if (Number.isNaN(num)) return;
           if (entry.isIntersecting) {
-            visibleSet.add(num);
+            visibleRatios.set(num, entry.intersectionRatio);
           } else {
-            visibleSet.delete(num);
+            visibleRatios.delete(num);
           }
         });
-        updateActive();
+
+        if (visibleRatios.size === 0) return;
+
+        let bestNumber: number | null = null;
+        let bestRatio = -1;
+        visibleRatios.forEach((ratio, num) => {
+          if (
+            ratio > bestRatio ||
+            (ratio === bestRatio && (bestNumber === null || num < bestNumber))
+          ) {
+            bestRatio = ratio;
+            bestNumber = num;
+          }
+        });
+
+        if (bestNumber !== null) {
+          const nextActive = bestNumber;
+          setActiveNumber((prev) => (prev === nextActive ? prev : nextActive));
+        }
       },
       {
-        rootMargin: '-18% 0px -48% 0px',
-        threshold: [0, 0.2, 0.5],
+        rootMargin: '-22% 0px -52% 0px',
+        threshold: [0, 0.25, 0.5, 0.75, 1],
       },
     );
 
     nodes.forEach((node) => observer.observe(node));
-    window.addEventListener('scroll', updateActive, { passive: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', updateActive);
-    };
+    return () => observer.disconnect();
   }, [items]);
 
   const handleJumpToItem = (number: number) => {
@@ -478,7 +456,7 @@ export function ReadingSection({ items }: ReadingSectionProps) {
         {/* Mobile / tablet compact 1–10 dot navigation bar */}
         <nav
           aria-label="Manifesto sections (mobile)"
-          className="lg:hidden sticky top-[var(--header-height)] -mx-[var(--gutter)] px-[var(--gutter)] py-3 mb-12 flex items-center justify-between gap-2 sm:gap-4 border-y backdrop-blur-md"
+          className="lg:hidden sticky top-[var(--header-height)] -mx-[var(--gutter)] px-[var(--gutter)] py-3 mb-12 flex items-center justify-between gap-2 sm:gap-4 border-y"
           style={{
             zIndex: 'var(--z-sticky)',
             backgroundColor: 'var(--color-bg-glass)',

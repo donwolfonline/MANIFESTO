@@ -59,13 +59,13 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
     }
 
     const instance = new Lenis({
-      duration: 1.15,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      lerp: 0.16,
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 0.95,
-      touchMultiplier: 1.15,
+      syncTouch: false,
+      wheelMultiplier: 1.15,
+      touchMultiplier: 1.1,
     });
 
     setLenis(instance);
