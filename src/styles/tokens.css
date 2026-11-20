@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Design Tokens — Personal Manifesto
+   Warm near-black canvas, off-white editorial ink, single sparing accent,
+   fluid clamp() type scale up to ~12vw, 62ch reading measure, 4% film grain.
+   ========================================================================== */
+
+:root {
+  /* Palette */
+  --color-bg: #201e1f;
+  --color-bg-elevated: #282527;
+  --color-bg-glass: rgba(32, 30, 31, 0.82);
+  --color-bg-subtle: rgba(242, 238, 232, 0.035);
+
+  --color-text: #f2eee8;
+  --color-text-secondary: #b8b1a7;
+  /* WCAG AA >= 4.75:1 against both #201e1f canvas and #282527 elevated surfaces */
+  --color-text-muted: #968f86;
+
+  --color-border: rgba(242, 238, 232, 0.12);
+  --color-border-strong: rgba(242, 238, 232, 0.24);
+
+  /* Single accent color (warm vermilion-orange, WCAG AA >= 4.75:1 on all surfaces) — used sparingly */
+  --color-accent: #f0642d;
+  --color-accent-soft: rgba(240, 100, 45, 0.14);
+  --color-accent-ink: #201e1f;
+
+  /* Font Families */
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+
+  /* Fluid Type Scale (clamp) */
+  --text-display: clamp(2.75rem, 11.8vw, 11.75rem);
+  --text-section: clamp(2.1rem, 5.2vw, 4.5rem);
+  --text-quote: clamp(1.65rem, 3.3vw, 2.85rem);
+  --text-lead: clamp(1.1875rem, 1.75vw, 1.55rem);
+  --text-body: clamp(1.0625rem, 0.55vw + 0.92rem, 1.25rem);
+  --text-heading-mono: clamp(0.75rem, 0.35vw + 0.65rem, 0.875rem);
+  --text-meta: clamp(0.72rem, 0.25vw + 0.65rem, 0.8125rem);
+  --text-micro: clamp(0.65rem, 0.2vw + 0.58rem, 0.72rem);
+
+  /* Line Heights */
+  --leading-display: 0.9;
+  --leading-section: 1.04;
+  --leading-quote: 1.2;
+  --leading-lead: 1.55;
+  --leading-body: 1.75;
+  --leading-mono: 1.6;
+
+  /* Letter Spacing */
+  --tracking-display: -0.028em;
+  --tracking-section: -0.018em;
+  --tracking-quote: -0.012em;
+  --tracking-mono: 0.08em;
+  --tracking-micro: 0.14em;
+
+  /* Layout & Whitespace */
+  --measure: 62ch;
+  --measure-lead: 52ch;
+  --container-max: 86rem;
+  --gutter: clamp(1.25rem, 4.5vw, 4rem);
+  --header-height: 4.25rem;
+  --space-section: clamp(4.75rem, 12dvh, 9.5rem);
+  --space-block: clamp(1.5rem, 3dvh, 2.5rem);
+
+  /* Texture & Radii */
+  --grain-opacity: 0.04;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+
+  /* Motion */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 180ms;
+  --duration-base: 420ms;
+  --duration-slow: 800ms;
+
+  /* Z-Index Scale */
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-header: 40;
+  --z-progress: 50;
+  --z-overlay: 60;
+  --z-preloader: 80;
+  --z-grain: 90;
+  --z-cursor: 100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+}

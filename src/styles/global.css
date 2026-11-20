@@ -1,0 +1,207 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@theme {
+  --color-canvas: var(--color-bg);
+  --color-elevated: var(--color-bg-elevated);
+  --color-ink: var(--color-text);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-muted: var(--color-text-muted);
+  --color-accent: var(--color-accent);
+  --color-rule: var(--color-border);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-xs);
+  }
+}
+
+/* Lenis smooth-scroll structural recommendations */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Full-viewport subtle film grain overlay (~4% opacity) */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  pointer-events: none;
+  z-index: var(--z-grain);
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+}
+
+/* Editorial container utility */
+.editorial-shell {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Editorial Markdown list markers */
+.manifesto-ul > li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
+  color: var(--color-accent);
+}
+
+.manifesto-ol {
+  counter-reset: manifesto-counter;
+}
+
+.manifesto-ol > li {
+  counter-increment: manifesto-counter;
+}
+
+.manifesto-ol > li::before {
+  content: counter(manifesto-counter, decimal-leading-zero) '.';
+  position: absolute;
+  left: 0;
+  top: 0.14em;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--leading-body);
+  color: var(--color-accent);
+}
+
+/* Huge outlined display numerals for the reading section */
+.outlined-number {
+  color: transparent;
+  -webkit-text-stroke: 1.25px rgba(242, 238, 232, 0.3);
+  paint-order: stroke fill;
+}
+
+@media (min-width: 1024px) {
+  .outlined-number {
+    -webkit-text-stroke: 1.5px rgba(242, 238, 232, 0.28);
+  }
+}
+
+/* Hover link underline drawing smoothly in from the left */
+.link-draw {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+  padding-bottom: 2px;
+  --link-draw-color: var(--color-accent);
+}
+
+.link-draw--resting {
+  background-image: linear-gradient(
+    var(--color-border-strong),
+    var(--color-border-strong)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 1px;
+}
+
+.link-draw::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--link-draw-color);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-base) var(--ease-editorial);
+}
+
+.link-draw:hover::after,
+.link-draw:focus-visible::after,
+.group:hover .link-draw::after,
+.group:focus-visible .link-draw::after {
+  transform: scaleX(1);
+}
+
+/* Hide default system cursor only on desktop fine-pointer devices when CustomCursor is active */
+html.has-custom-cursor,
+html.has-custom-cursor * {
+  cursor: none !important;
+}
+
+/* Terminal blinking cursor for <TypedLine /> */
+@keyframes terminal-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.terminal-cursor-blink {
+  animation: terminal-blink 1s steps(1, end) infinite;
+}
+
+/* Hard reduced-motion guarantee across all CSS animations & transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
