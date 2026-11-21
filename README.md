@@ -184,7 +184,7 @@ flowchart LR
    Plus the existing backup/uptime secrets (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `UPTIME_ALERT_WEBHOOK_URL`) and the `SITE_URL` **variable**, which the production smoke test also uses.
 3. **Runtime env vars** (`SUPABASE_*`, `ADMIN_PASSWORD`, `RATE_LIMIT_SALT`, …) stay in the Vercel dashboard. `vercel pull` fetches them at build time, so they never live in GitHub.
 4. **Branch protection** on `main`: require pull requests and the **CI passed** and **Lighthouse CI** status checks.
-5. `vercel.json` sets `"git": { "deploymentEnabled": false }` so Vercel's own Git integration doesn't deploy alongside Actions. Remove it if you'd rather let Vercel build on its own.
+5. By default `vercel.json` lets Vercel's native Git integration auto-deploy on push even before `VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID` secrets are set. Once all three GitHub secrets are configured, you can optionally add `"git": { "deploymentEnabled": false }` to `vercel.json` so Vercel's own Git integration doesn't deploy alongside Actions.
 
 ### When a check fails
 
