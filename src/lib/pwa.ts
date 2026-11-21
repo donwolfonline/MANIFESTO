@@ -33,7 +33,7 @@ export function classifySwFetchStrategy({
   method = 'GET',
   destination = '',
   mode = 'cors',
-  origin = 'https://workingcopy.yourdomain.com',
+  origin = 'https://manifestomd.vercel.app',
 }: SwRequestDescriptor): SwCacheStrategy {
   if (method.toUpperCase() !== 'GET') return 'bypass';
 

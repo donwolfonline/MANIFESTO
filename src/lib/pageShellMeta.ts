@@ -32,7 +32,7 @@ export interface PageShellRouteInfo {
   nextRoute: RouteConfig | null;
 }
 
-const SITE_ORIGIN = 'https://workingcopy.yourdomain.com';
+const SITE_ORIGIN = 'https://manifestomd.vercel.app';
 
 const GROUP_NUMBER_MAP: Record<RouteGroup, string> = {
   read: '01',

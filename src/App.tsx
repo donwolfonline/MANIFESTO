@@ -1044,7 +1044,7 @@ function ManifestoApp() {
     setMeta('meta[name="description"]', homeDesc);
     setMeta('meta[property="og:title"]', homeTitle);
     setMeta('meta[property="og:description"]', homeDesc);
-    setMeta('meta[property="og:url"]', 'https://workingcopy.yourdomain.com/');
+    setMeta('meta[property="og:url"]', 'https://manifestomd.vercel.app/');
     setMeta('meta[name="twitter:title"]', homeTitle);
     setMeta('meta[name="twitter:description"]', homeDesc);
   }, [route, meta.title]);

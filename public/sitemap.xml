@@ -1,67 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://workingcopy.yourdomain.com/</loc>
+    <loc>https://manifestomd.vercel.app/</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/naming</loc>
+    <loc>https://manifestomd.vercel.app/naming</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/today</loc>
+    <loc>https://manifestomd.vercel.app/today</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/terminal</loc>
+    <loc>https://manifestomd.vercel.app/terminal</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/commit-log</loc>
+    <loc>https://manifestomd.vercel.app/commit-log</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/bug-museum</loc>
+    <loc>https://manifestomd.vercel.app/bug-museum</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/delete</loc>
+    <loc>https://manifestomd.vercel.app/delete</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/focus</loc>
+    <loc>https://manifestomd.vercel.app/focus</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/shelf</loc>
+    <loc>https://manifestomd.vercel.app/shelf</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/playground</loc>
+    <loc>https://manifestomd.vercel.app/playground</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://workingcopy.yourdomain.com/wall</loc>
+    <loc>https://manifestomd.vercel.app/wall</loc>
     <lastmod>2026-11-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>

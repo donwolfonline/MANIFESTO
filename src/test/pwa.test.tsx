@@ -12,21 +12,21 @@ describe('PWA service worker cache strategies & update toast', () => {
     // Static assets -> cache-first
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/assets/index-DghlxsdY.js',
+        url: 'https://manifestomd.vercel.app/assets/index-DghlxsdY.js',
         destination: 'script',
       }),
     ).toBe('cache-first');
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/fonts/instrument-serif-latin-400-normal.woff2',
+        url: 'https://manifestomd.vercel.app/fonts/instrument-serif-latin-400-normal.woff2',
         destination: 'font',
       }),
     ).toBe('cache-first');
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/icons/icon-192.png',
+        url: 'https://manifestomd.vercel.app/icons/icon-192.png',
         destination: 'image',
       }),
     ).toBe('cache-first');
@@ -34,7 +34,7 @@ describe('PWA service worker cache strategies & update toast', () => {
     // Content & HTML navigations -> network-first
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/',
+        url: 'https://manifestomd.vercel.app/',
         mode: 'navigate',
         destination: 'document',
       }),
@@ -42,7 +42,7 @@ describe('PWA service worker cache strategies & update toast', () => {
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/today',
+        url: 'https://manifestomd.vercel.app/today',
         mode: 'navigate',
         destination: 'document',
       }),
@@ -50,14 +50,14 @@ describe('PWA service worker cache strategies & update toast', () => {
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/api/wall',
+        url: 'https://manifestomd.vercel.app/api/wall',
         mode: 'cors',
       }),
     ).toBe('network-first');
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/manifest.webmanifest',
+        url: 'https://manifestomd.vercel.app/manifest.webmanifest',
         mode: 'cors',
       }),
     ).toBe('network-first');
@@ -65,14 +65,14 @@ describe('PWA service worker cache strategies & update toast', () => {
     // Non-GET or sw.js itself -> bypass
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/api/wall',
+        url: 'https://manifestomd.vercel.app/api/wall',
         method: 'POST',
       }),
     ).toBe('bypass');
 
     expect(
       classifySwFetchStrategy({
-        url: 'https://workingcopy.yourdomain.com/sw.js',
+        url: 'https://manifestomd.vercel.app/sw.js',
       }),
     ).toBe('bypass');
   });

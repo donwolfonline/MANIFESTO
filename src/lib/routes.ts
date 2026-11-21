@@ -250,7 +250,7 @@ export function getRouteById(id: string): RouteConfig | undefined {
  * Generates an XML sitemap string directly from the unified `ROUTES` config.
  */
 export function generateSitemapXml(
-  baseUrl = 'https://workingcopy.yourdomain.com',
+  baseUrl = 'https://manifestomd.vercel.app',
   lastmod = '2026-11-21',
 ): string {
   const cleanBase = baseUrl.replace(/\/+$/, '');

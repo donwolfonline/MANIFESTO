@@ -126,7 +126,7 @@ describe('<PageShell /> shared sub-route shell, breadcrumbs, scroll header hide/
       document.head
         .querySelector('meta[property="og:url"]')
         ?.getAttribute('content'),
-    ).toBe('https://workingcopy.yourdomain.com/naming');
+    ).toBe('https://manifestomd.vercel.app/naming');
 
     // Navigate to /bug-museum -> title, meta description, and OG tags update automatically
     rerender(
@@ -155,7 +155,7 @@ describe('<PageShell /> shared sub-route shell, breadcrumbs, scroll header hide/
       document.head
         .querySelector('meta[property="og:url"]')
         ?.getAttribute('content'),
-    ).toBe('https://workingcopy.yourdomain.com/bug-museum');
+    ).toBe('https://manifestomd.vercel.app/bug-museum');
   });
 
   it('links Prev / Next pages in the exact order of Field Index with interactive hover previews', async () => {

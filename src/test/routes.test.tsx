@@ -57,10 +57,10 @@ describe('Unified typed routes config (routes.ts) & author identity', () => {
   });
 
   it('generates sitemap XML containing every route from ROUTES', () => {
-    const xml = generateSitemapXml('https://workingcopy.yourdomain.com');
+    const xml = generateSitemapXml('https://manifestomd.vercel.app');
     expect(xml).toContain('<urlset');
     for (const route of ROUTES) {
-      const expectedLoc = `https://workingcopy.yourdomain.com${
+      const expectedLoc = `https://manifestomd.vercel.app${
         route.path === '/' ? '/' : route.path
       }`;
       expect(xml).toContain(`<loc>${expectedLoc}</loc>`);
