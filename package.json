@@ -33,7 +33,7 @@
     "pwa:check": "node scripts/verify-pwa.mjs"
   },
   "dependencies": {
-    "framer-motion": "^12.4.7",
+    "framer-motion": "^14.14.0",
     "lenis": "^1.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
