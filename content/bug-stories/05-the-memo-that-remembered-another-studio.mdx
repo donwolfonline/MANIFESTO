@@ -1,0 +1,37 @@
+---
+exhibitNumber: "05"
+title: The Memo That Remembered Another Studio
+slug: the-memo-that-remembered-another-studio
+date: 2024-06-15
+year: 2024
+category: caching
+tags:
+  - caching
+  - postmortem
+summary: Keyed an in-memory tax summary cache by period alone, omitting the workspace ID.
+draft: false
+cause: Keyed an in-memory tax summary cache by period alone, omitting the workspace ID.
+cost: 18-minute emergency cache purge and a deeply humbled Friday postmortem.
+lesson: Every cache key for user-owned data must carry the tenant scope as its first segment.
+snippet:
+  filename: tax-cache.ts
+  language: ts
+  contextBefore:
+    - "export function getTaxSummaryKey(workspaceId: string, quarter: string): string {"
+  brokenLine: "  return `tax-summary:${quarter}`;"
+  fixedLine: "  return `workspace:${workspaceId}:tax-summary:${quarter}`;"
+  contextAfter:
+    - "}"
+  brokenNote: Omitting workspaceId shares one cached payload across every tenant requesting the same quarter.
+  fixedNote: Prefixing every key with workspaceId isolates cached reports strictly per tenant.
+---
+
+Quarterly tax reports took four seconds to aggregate, so we added a tidy sixty-second memo cache in front of the endpoint. Load tests looked marvelous—response times fell from four seconds to nine milliseconds.
+
+## What went wrong
+
+Ten minutes after launch, a designer in Berlin refreshed their draft summary and briefly saw a quarterly total formatted in Japanese yen belonging to a print shop in Kyoto that had clicked refresh three seconds earlier.
+
+## The lasting change
+
+The cache key had been `'tax-summary:2024-Q3'` with no workspace prefix. A one-line key helper requiring tenantId at the type level ensured no future cache entry could ever cross a boundary again.

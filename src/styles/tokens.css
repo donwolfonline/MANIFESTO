@@ -1,37 +1,52 @@
 /* ==========================================================================
    Design Tokens — Personal Manifesto
-   Warm near-black canvas, off-white editorial ink, single sparing accent,
-   fluid clamp() type scale up to ~12vw, 62ch reading measure, 4% film grain.
+   Supports three editorial themes (Night, Paper, Sepia) plus automatic
+   system preference (prefers-color-scheme) and distraction-free Reading Mode.
+   Every text/accent token is verified >= 4.74:1 WCAG AA across all 3 themes.
    ========================================================================== */
 
-:root {
-  /* Palette */
+:root,
+:root[data-theme='night'] {
+  color-scheme: dark;
+
+  /* Night Palette (Warm near-black canvas, off-white editorial ink) */
   --color-bg: #201e1f;
   --color-bg-elevated: #282527;
+  --color-bg-deep: #191718;
   --color-bg-glass: rgba(32, 30, 31, 0.94);
   --color-bg-subtle: rgba(242, 238, 232, 0.035);
 
   --color-text: #f2eee8;
   --color-text-secondary: #b8b1a7;
-  /* WCAG AA >= 4.75:1 against both #201e1f canvas and #282527 elevated surfaces */
   --color-text-muted: #968f86;
 
   --color-border: rgba(242, 238, 232, 0.12);
   --color-border-strong: rgba(242, 238, 232, 0.24);
 
-  /* Single accent color (warm vermilion-orange, WCAG AA >= 4.75:1 on all surfaces) — used sparingly */
-  --color-accent: #f0642d;
-  --color-accent-soft: rgba(240, 100, 45, 0.14);
+  --color-accent: var(--color-accent-night, #f0642d);
+  --color-accent-soft: var(--color-accent-night-soft, rgba(240, 100, 45, 0.14));
   --color-accent-ink: #201e1f;
 
-  /* Font Families */
-  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-  --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  --color-status-ok: #6ec49c;
+  --color-status-warn: #e9a83b;
+  --color-status-error: #f4726b;
+  --color-status-info: #7cb8e8;
+
+  /* Header Backdrop & Link Opacity Tokens */
+  --color-header-scroll-bg: rgba(32, 30, 31, 0.7);
+  --color-header-link: rgba(242, 238, 232, 0.7);
+  --color-header-link-hover: #f2eee8;
+
+  /* Font Families (self-hosted Latin WOFF2 + metric-adjusted local fallbacks) */
+  --font-display: 'Instrument Serif', 'Instrument Serif Fallback', Georgia,
+    'Times New Roman', serif;
+  --font-body: 'Newsreader', 'Newsreader Fallback', Georgia, 'Times New Roman',
+    serif;
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace,
+    SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Fluid Type Scale (clamp) */
-  --text-display: clamp(2.75rem, 11.8vw, 11.75rem);
+  --text-display: clamp(2.45rem, 10vw, 10.25rem);
   --text-section: clamp(2.1rem, 5.2vw, 4.5rem);
   --text-quote: clamp(1.65rem, 3.3vw, 2.85rem);
   --text-lead: clamp(1.1875rem, 1.75vw, 1.55rem);
@@ -55,14 +70,33 @@
   --tracking-mono: 0.08em;
   --tracking-micro: 0.14em;
 
-  /* Layout & Whitespace */
+  /* Responsive Breakpoint Tokens (px) */
+  --bp-xs: 360px;
+  --bp-fold: 480px;
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+  --bp-3xl: 1920px;
+  --bp-4xl: 2560px;
+
+  /* Dynamic Viewport Units */
+  --vh-dynamic: 100dvh;
+  --vh-small: 100svh;
+  --vh-large: 100lvh;
+
+  /* Layout & Whitespace (62ch line cap, max ~1440px / 90rem centered) */
   --measure: 62ch;
   --measure-lead: 52ch;
-  --container-max: 86rem;
-  --gutter: clamp(1.25rem, 4.5vw, 4rem);
-  --header-height: 4.25rem;
-  --space-section: clamp(4.75rem, 12dvh, 9.5rem);
-  --space-block: clamp(1.5rem, 3dvh, 2.5rem);
+  --container-max: 90rem;
+  --gutter: clamp(1.25rem, 4vw, 4rem);
+  --header-h: 3.75rem;
+  --header-height: var(--header-h);
+  --touch-target-min: 44px;
+  --touch-gap-min: 8px;
+  --space-section: clamp(4rem, 11svh, 9.5rem);
+  --space-block: clamp(1.25rem, 3dvh, 2.5rem);
 
   /* Texture & Radii */
   --grain-opacity: 0.04;
@@ -84,6 +118,142 @@
   --z-preloader: 80;
   --z-grain: 90;
   --z-cursor: 100;
+}
+
+/* Paper Theme (Warm daylight paper, high-contrast charcoal ink >= 5.08:1 AA/AAA) */
+:root[data-theme='paper'] {
+  color-scheme: light;
+
+  --color-bg: #faf7f2;
+  --color-bg-elevated: #f1ece3;
+  --color-bg-deep: #e8e1d5;
+  --color-bg-glass: rgba(250, 247, 242, 0.94);
+  --color-bg-subtle: rgba(26, 23, 24, 0.04);
+
+  --color-text: #1a1718;
+  --color-text-secondary: #3b3532;
+  --color-text-muted: #59514c;
+
+  --color-border: rgba(26, 23, 24, 0.14);
+  --color-border-strong: rgba(26, 23, 24, 0.28);
+
+  --color-accent: var(--color-accent-light, #942b06);
+  --color-accent-soft: var(--color-accent-light-soft, rgba(148, 43, 6, 0.12));
+  --color-accent-ink: #faf7f2;
+
+  --color-status-ok: #13613d;
+  --color-status-warn: #874f00;
+  --color-status-error: #a62019;
+  --color-status-info: #155885;
+  --color-header-scroll-bg: rgba(250, 247, 242, 0.78);
+  --color-header-link: rgba(26, 23, 24, 0.72);
+  --color-header-link-hover: #1a1718;
+  --grain-opacity: 0.025;
+}
+
+/* Sepia Theme (Archival warm parchment, deep espresso ink >= 5.14:1 AA/AAA) */
+:root[data-theme='sepia'] {
+  color-scheme: light;
+
+  --color-bg: #f2e7d3;
+  --color-bg-elevated: #e8dac1;
+  --color-bg-deep: #dfd0b4;
+  --color-bg-glass: rgba(242, 231, 211, 0.94);
+  --color-bg-subtle: rgba(34, 26, 19, 0.045);
+
+  --color-text: #221a13;
+  --color-text-secondary: #3b2f24;
+  --color-text-muted: #524234;
+
+  --color-border: rgba(34, 26, 19, 0.16);
+  --color-border-strong: rgba(34, 26, 19, 0.30);
+
+  --color-accent: var(--color-accent-light, #942b06);
+  --color-accent-soft: var(--color-accent-light-soft, rgba(148, 43, 6, 0.13));
+  --color-accent-ink: #faf5ec;
+
+  --color-status-ok: #115938;
+  --color-status-warn: #7a4600;
+  --color-status-error: #961c16;
+  --color-status-info: #14507a;
+  --color-header-scroll-bg: rgba(242, 231, 211, 0.78);
+  --color-header-link: rgba(34, 26, 19, 0.74);
+  --color-header-link-hover: #221a13;
+  --grain-opacity: 0.03;
+}
+
+/* Default to system theme via prefers-color-scheme when no explicit data-theme is forced */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --color-bg: #faf7f2;
+    --color-bg-elevated: #f1ece3;
+    --color-bg-deep: #e8e1d5;
+    --color-bg-glass: rgba(250, 247, 242, 0.94);
+    --color-bg-subtle: rgba(26, 23, 24, 0.04);
+
+    --color-text: #1a1718;
+    --color-text-secondary: #3b3532;
+    --color-text-muted: #59514c;
+
+    --color-border: rgba(26, 23, 24, 0.14);
+    --color-border-strong: rgba(26, 23, 24, 0.28);
+
+    --color-accent: var(--color-accent-light, #942b06);
+    --color-accent-soft: var(--color-accent-light-soft, rgba(148, 43, 6, 0.12));
+    --color-accent-ink: #faf7f2;
+
+    --color-status-ok: #13613d;
+    --color-status-warn: #874f00;
+    --color-status-error: #a62019;
+    --color-status-info: #155885;
+    --color-header-scroll-bg: rgba(250, 247, 242, 0.78);
+    --color-header-link: rgba(26, 23, 24, 0.72);
+    --color-header-link-hover: #1a1718;
+    --grain-opacity: 0.025;
+  }
+}
+
+/* Reading Mode: widens line spacing and locks comfortable 62ch measure */
+:root[data-reading-mode='true'] {
+  --measure: 62ch;
+  --leading-body: 1.98;
+  --leading-lead: 1.72;
+}
+
+/* Font-size controls for Reading Mode & long-form pages */
+:root[data-font-size='sm'] {
+  --text-body: clamp(0.95rem, 0.45vw + 0.84rem, 1.08rem);
+  --text-lead: clamp(1.0625rem, 1.4vw, 1.35rem);
+}
+
+:root[data-font-size='md'] {
+  --text-body: clamp(1.0625rem, 0.55vw + 0.92rem, 1.25rem);
+  --text-lead: clamp(1.1875rem, 1.75vw, 1.55rem);
+}
+
+:root[data-font-size='lg'] {
+  --text-body: clamp(1.1875rem, 0.65vw + 1.02rem, 1.4rem);
+  --text-lead: clamp(1.3rem, 2vw, 1.72rem);
+}
+
+:root[data-font-size='xl'] {
+  --text-body: clamp(1.32rem, 0.8vw + 1.12rem, 1.56rem);
+  --text-lead: clamp(1.42rem, 2.2vw, 1.9rem);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --header-h: 4.25rem;
+  }
+}
+
+/* Landscape phones: shorter hero & reduced header height */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --header-h: 2.75rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

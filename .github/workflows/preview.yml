@@ -1,0 +1,209 @@
+name: Preview Deploy & Lighthouse
+
+# One Vercel preview per PR, a sticky comment with its URL, then Lighthouse CI
+# against that live preview with scores posted back to the same PR.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy-preview:
+    name: Deploy preview (Vercel)
+    # Secrets are unavailable to fork and Dependabot PRs, so skip cleanly there.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pull Vercel preview environment
+        run: npx --yes vercel@latest pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel
+        run: npx --yes vercel@latest build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt preview
+        id: deploy
+        run: |
+          url=$(npx --yes vercel@latest deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview deployed: $url"
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- preview-deploy -->';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const url = process.env.PREVIEW_URL;
+            const body = [
+              marker,
+              '### 🚀 Preview deployment ready',
+              '',
+              '| | |',
+              '| --- | --- |',
+              `| **Preview** | ${url} |`,
+              `| **Commit** | \`${sha}\` |`,
+              `| **Routes to eyeball** | [/](${url}/) · [/wall](${url}/wall) · [/playground](${url}/playground) · [/privacy](${url}/privacy) |`,
+              '',
+              '_Lighthouse results will appear in a separate comment shortly._',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  lighthouse:
+    name: Lighthouse CI
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Run Lighthouse CI against the preview
+        id: lhci
+        continue-on-error: true
+        env:
+          PREVIEW_URL: ${{ needs.deploy-preview.outputs.url }}
+          # Optional: Vercel "Protection Bypass for Automation" secret, needed
+          # only if preview deployments are password/SSO protected.
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          headers='{}'
+          if [ -n "$BYPASS" ]; then
+            headers="{\"x-vercel-protection-bypass\":\"$BYPASS\"}"
+          fi
+          npx --yes @lhci/cli@0.15.x autorun \
+            --collect.url="$PREVIEW_URL/" \
+            --collect.url="$PREVIEW_URL/wall" \
+            --collect.url="$PREVIEW_URL/privacy" \
+            --collect.settings.extraHeaders="$headers"
+
+      - name: Upload full Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14
+
+      - name: Comment Lighthouse results on PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ needs.deploy-preview.outputs.url }}
+          LHCI_OUTCOME: ${{ steps.lhci.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const marker = '<!-- lighthouse-ci -->';
+            const dir = '.lighthouseci';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const preview = process.env.PREVIEW_URL;
+
+            const manifestPath = path.join(dir, 'reports', 'manifest.json');
+            let rows = [];
+            if (fs.existsSync(manifestPath)) {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+              const representative = manifest.filter((m) => m.isRepresentativeRun);
+              const score = (v) => {
+                const n = Math.round((v ?? 0) * 100);
+                return `${n >= 90 ? '🟢' : n >= 50 ? '🟠' : '🔴'} ${n}`;
+              };
+              for (const run of representative) {
+                const lhr = JSON.parse(fs.readFileSync(run.jsonPath, 'utf8'));
+                const a = lhr.audits;
+                const route = new URL(run.url).pathname;
+                rows.push(
+                  `| \`${route}\` | ${score(run.summary.performance)} | ${score(run.summary.accessibility)} | ${score(run.summary['best-practices'])} | ${score(run.summary.seo)} | ${a['largest-contentful-paint'].displayValue} | ${a['cumulative-layout-shift'].displayValue} | ${a['total-blocking-time'].displayValue} |`,
+                );
+              }
+            }
+
+            let assertionNote = '';
+            const assertPath = path.join(dir, 'assertion-results.json');
+            if (fs.existsSync(assertPath)) {
+              const failed = JSON.parse(fs.readFileSync(assertPath, 'utf8')).filter((r) => !r.passed);
+              if (failed.length) {
+                assertionNote = [
+                  '',
+                  `<details><summary>⚠️ ${failed.length} assertion(s) did not pass</summary>`,
+                  '',
+                  ...failed.map((f) => `- \`${new URL(f.url).pathname}\` **${f.auditId}** (${f.level}): expected ${f.operator} ${f.expected}, got ${typeof f.actual === 'number' ? +f.actual.toFixed(3) : f.actual}`),
+                  '',
+                  '</details>',
+                ].join('\n');
+              }
+            }
+
+            const status = process.env.LHCI_OUTCOME === 'success' ? '✅ budgets met' : '❌ budgets not met';
+            const body = [
+              marker,
+              `### 🔦 Lighthouse CI — ${status}`,
+              '',
+              `Mobile emulation, median of 3 runs against ${preview}`,
+              '',
+              rows.length
+                ? ['| Route | Perf | A11y | Best practices | SEO | LCP | CLS | TBT |', '| --- | --- | --- | --- | --- | --- | --- | --- |', ...rows].join('\n')
+                : '_No Lighthouse results were produced. Check the workflow logs._',
+              assertionNote,
+              '',
+              `Full HTML reports: **lighthouse-reports** artifact on [this run](${runUrl}).`,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail if Lighthouse budgets were not met
+        if: steps.lhci.outcome != 'success'
+        run: |
+          echo "Lighthouse CI assertions failed. See the PR comment and the lighthouse-reports artifact."
+          exit 1

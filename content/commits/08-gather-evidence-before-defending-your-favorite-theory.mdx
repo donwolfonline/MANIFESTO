@@ -1,0 +1,50 @@
+---
+principleNumber: 8
+hash: 51b3e9a
+prefix: fix
+title: gather evidence before defending your favorite theory
+slug: gather-evidence-before-defending-your-favorite-theory
+author: working-engineer
+date: 2026-09-15
+relativeDate: 2 months ago
+filePath: habits/debugging.md
+tags:
+  - fix
+  - git-history
+summary: "fix: gather evidence before defending your favorite theory"
+draft: false
+hunks:
+  - removed:
+      - Spend sixty confident minutes blaming the load balancer without printing the actual request
+        headers.
+    added:
+      - During an outage, intuition feels heroic until you burn an hour blaming the load balancer
+        while a typo sits calmly inside an environment variable.
+    blame:
+      hash: 51b3e9a
+      author: detective
+      when: 2026-09-15 14:09
+      note: culprit turned out to be a trailing space after API_BASE_URL
+  - removed:
+      - Treat debugging like a courtroom defense of your first guess.
+    added:
+      - Print the actual inputs, check the real logs, and let small facts embarrass your grand
+        hypothesis early. Good debugging is humble detective work, not a debate.
+    blame:
+      hash: 51b3e9a
+      author: console-log
+      when: 2026-09-15 14:22
+      note: one humble print statement defeated four architecture diagrams
+---
+
+## Hunk 1
+
+During an outage, intuition feels heroic until you burn an hour blaming the load balancer while a typo sits calmly inside an environment variable.
+
+> Blame (detective, 2026-09-15 14:09): culprit turned out to be a trailing space after API_BASE_URL
+
+## Hunk 2
+
+Print the actual inputs, check the real logs, and let small facts embarrass your grand hypothesis early. Good debugging is humble detective work, not a debate.
+
+> Blame (console-log, 2026-09-15 14:22): one humble print statement defeated four architecture diagrams

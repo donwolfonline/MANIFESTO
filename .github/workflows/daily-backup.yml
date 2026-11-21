@@ -1,0 +1,34 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    # Run daily at 03:15 UTC
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-wall-db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Export and verify gzipped Wall snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run db:backup
+
+      - name: Upload 30-day backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wall-db-backup-${{ github.run_id }}
+          path: backups/wall-backup-*
+          retention-days: 30
+          if-no-files-found: error

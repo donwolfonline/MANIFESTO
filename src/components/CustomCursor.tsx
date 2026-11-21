@@ -1,15 +1,9 @@
-import { useEffect, useState } from 'react';
-import {
-  AnimatePresence,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-} from 'framer-motion';
-import { EASE_OUT_EXPO } from '../lib/motion';
+/* eslint-disable react-refresh/only-export-components */
+import { useEffect, useRef, useState } from 'react';
+import { useDocumentVisible } from '../lib/useViewportActivity';
 
 export interface CustomCursorProps {
-  /** CSS selector for the reading/body section where the label appears */
+  /** CSS selector for the reading/body section where the "read" label appears */
   readSectionSelector?: string;
   /** Label shown inside the expanded ring over the reading section */
   readLabel?: string;
@@ -17,191 +11,338 @@ export interface CustomCursorProps {
   enabled?: boolean;
 }
 
-type CursorVariant = 'default' | 'link' | 'read';
+export type CursorVariant = 'default' | 'link' | 'labeled';
+export type CursorAreaLabel = 'read' | 'drag' | 'open';
 
 const FINE_POINTER_QUERY = '(hover: hover) and (pointer: fine)';
+const COARSE_POINTER_QUERY = '(pointer: coarse)';
+const SPRING_STIFFNESS = 0.22;
+const SPRING_DAMPING = 0.72;
+
+export function isFineDesktopPointerDevice(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  if (window.matchMedia(COARSE_POINTER_QUERY).matches) {
+    return false;
+  }
+  return window.matchMedia(FINE_POINTER_QUERY).matches;
+}
+
+/**
+ * Resolves the cursor variant and optional inner area label ("read", "drag", "open")
+ * for a hovered DOM target.
+ */
+export function resolveCursorStateForTarget(
+  target: HTMLElement | null,
+  readSectionSelector = '#read',
+  defaultReadLabel: CursorAreaLabel = 'read',
+): { variant: CursorVariant; label: CursorAreaLabel | null } {
+  if (!target || typeof target.closest !== 'function') {
+    return { variant: 'default', label: null };
+  }
+
+  // 1. Explicit data-cursor-label / data-cursor override ("read", "drag", "open")
+  const explicitNode = target.closest<HTMLElement>(
+    '[data-cursor-label], [data-cursor]',
+  );
+  if (explicitNode) {
+    const raw = (
+      explicitNode.getAttribute('data-cursor-label') ||
+      explicitNode.getAttribute('data-cursor') ||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+    if (raw === 'read' || raw === 'drag' || raw === 'open') {
+      return { variant: 'labeled', label: raw };
+    }
+    if (raw === 'link') {
+      return { variant: 'link', label: null };
+    }
+  }
+
+  // 2. Draggable sliders, range inputs, and comparison dividers -> "drag"
+  if (
+    target.closest(
+      '[role="slider"], input[type="range"], .cursor-ew-resize, .cursor-grab, .cursor-grabbing',
+    )
+  ) {
+    return { variant: 'labeled', label: 'drag' };
+  }
+
+  // 3. Dialog triggers, museum exhibit placards, and bookshelf spines -> "open"
+  if (
+    target.closest(
+      '[aria-haspopup="dialog"], [data-exhibit-card], [data-shelf-book]',
+    )
+  ) {
+    return { variant: 'labeled', label: 'open' };
+  }
+
+  // 4. Standard links, buttons, and form controls -> expanded ring
+  if (
+    target.closest(
+      'a, button, [role="button"], input, textarea, select, summary',
+    )
+  ) {
+    return { variant: 'link', label: null };
+  }
+
+  // 5. Long-form reading section -> expanded ring with "read" label
+  if (readSectionSelector && target.closest(readSectionSelector)) {
+    return { variant: 'labeled', label: defaultReadLabel };
+  }
+
+  return { variant: 'default', label: null };
+}
 
 export function CustomCursor({
   readSectionSelector = '#read',
   readLabel = 'read',
   enabled = true,
 }: CustomCursorProps) {
-  const prefersReducedMotion = Boolean(useReducedMotion());
-  const [isDesktopPointer, setIsDesktopPointer] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia(FINE_POINTER_QUERY).matches;
-  });
+  const docVisible = useDocumentVisible();
+  const [isDesktopPointer, setIsDesktopPointer] = useState<boolean>(() =>
+    isFineDesktopPointerDevice(),
+  );
+  // Render NOTHING in the DOM until the first real pointermove arrives
+  const [hasMoved, setHasMoved] = useState(false);
   const [visible, setVisible] = useState(false);
   const [variant, setVariant] = useState<CursorVariant>('default');
+  const [areaLabel, setAreaLabel] = useState<CursorAreaLabel | null>(null);
   const [pressed, setPressed] = useState(false);
 
-  const mouseX = useMotionValue(-100);
-  const mouseY = useMotionValue(-100);
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const dotRef = useRef<HTMLDivElement | null>(null);
+  const posRef = useRef({
+    targetX: -100,
+    targetY: -100,
+    ringX: -100,
+    ringY: -100,
+    vx: 0,
+    vy: 0,
+    initialized: false,
+  });
 
-  const ringX = useSpring(mouseX, { stiffness: 360, damping: 32, mass: 0.45 });
-  const ringY = useSpring(mouseY, { stiffness: 360, damping: 32, mass: 0.45 });
-
-  // Detect fine-pointer desktop vs. touch device dynamically
   useEffect(() => {
-    const mediaQuery = window.matchMedia(FINE_POINTER_QUERY);
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsDesktopPointer(event.matches);
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const fineMq = window.matchMedia(FINE_POINTER_QUERY);
+    const coarseMq = window.matchMedia(COARSE_POINTER_QUERY);
+
+    const syncPointerCapability = () => {
+      const fine = isFineDesktopPointerDevice();
+      setIsDesktopPointer(fine);
+      if (!fine) {
+        setHasMoved(false);
+        setVisible(false);
+      }
     };
 
-    setIsDesktopPointer(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    syncPointerCapability();
+    fineMq.addEventListener('change', syncPointerCapability);
+    coarseMq.addEventListener('change', syncPointerCapability);
+    return () => {
+      fineMq.removeEventListener('change', syncPointerCapability);
+      coarseMq.removeEventListener('change', syncPointerCapability);
+    };
   }, []);
 
-  const active = enabled && isDesktopPointer && !prefersReducedMotion;
+  const canTrack = enabled && isDesktopPointer && docVisible;
+  const shouldRender = canTrack && hasMoved && visible;
 
-  // Toggle global class to hide the native cursor only while active
   useEffect(() => {
     const root = document.documentElement;
-    if (active) {
+    if (shouldRender) {
       root.classList.add('has-custom-cursor');
     } else {
       root.classList.remove('has-custom-cursor');
     }
     return () => root.classList.remove('has-custom-cursor');
-  }, [active]);
+  }, [shouldRender]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!canTrack) return;
 
+    let rafId = 0;
     let lastTarget: EventTarget | null = null;
+
+    const animateRingSpring = () => {
+      const pos = posRef.current;
+      const dx = pos.targetX - pos.ringX;
+      const dy = pos.targetY - pos.ringY;
+
+      pos.vx = (pos.vx + dx * SPRING_STIFFNESS) * SPRING_DAMPING;
+      pos.vy = (pos.vy + dy * SPRING_STIFFNESS) * SPRING_DAMPING;
+      pos.ringX += pos.vx;
+      pos.ringY += pos.vy;
+
+      if (ringRef.current) {
+        ringRef.current.style.transform = `translate3d(${pos.ringX.toFixed(1)}px, ${pos.ringY.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      }
+
+      if (
+        Math.abs(dx) > 0.2 ||
+        Math.abs(dy) > 0.2 ||
+        Math.abs(pos.vx) > 0.1 ||
+        Math.abs(pos.vy) > 0.1
+      ) {
+        rafId = window.requestAnimationFrame(animateRingSpring);
+      } else {
+        pos.ringX = pos.targetX;
+        pos.ringY = pos.targetY;
+        pos.vx = 0;
+        pos.vy = 0;
+        if (ringRef.current) {
+          ringRef.current.style.transform = `translate3d(${pos.ringX.toFixed(1)}px, ${pos.ringY.toFixed(1)}px, 0) translate(-50%, -50%)`;
+        }
+        rafId = 0;
+      }
+    };
 
     const handlePointerMove = (event: PointerEvent) => {
       if (event.pointerType === 'touch') {
-        setVisible((prev) => (prev ? false : prev));
+        setVisible(false);
+        setHasMoved(false);
         return;
       }
 
-      mouseX.set(event.clientX);
-      mouseY.set(event.clientY);
+      const pos = posRef.current;
+      pos.targetX = event.clientX;
+      pos.targetY = event.clientY;
+
+      if (!pos.initialized) {
+        pos.initialized = true;
+        pos.ringX = event.clientX;
+        pos.ringY = event.clientY;
+        pos.vx = 0;
+        pos.vy = 0;
+      }
+
+      if (dotRef.current) {
+        dotRef.current.style.transform = `translate3d(${pos.targetX.toFixed(1)}px, ${pos.targetY.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      }
+
+      if (rafId === 0) {
+        rafId = window.requestAnimationFrame(animateRingSpring);
+      }
+
+      setHasMoved((prev) => (prev ? prev : true));
       setVisible((prev) => (prev ? prev : true));
 
-      // Avoid repeated closest() DOM traversals when hovering the same node
       if (event.target === lastTarget) return;
       lastTarget = event.target;
 
-      const target = event.target as HTMLElement | null;
-      if (!target) {
-        setVariant((prev) => (prev === 'default' ? prev : 'default'));
-        return;
-      }
-
-      let nextVariant: CursorVariant = 'default';
-      if (
-        target.closest(
-          'a, button, [role="button"], input, textarea, select, [data-cursor="link"]',
-        )
-      ) {
-        nextVariant = 'link';
-      } else if (target.closest(readSectionSelector)) {
-        nextVariant = 'read';
-      }
-
-      setVariant((prev) => (prev === nextVariant ? prev : nextVariant));
+      const resolved = resolveCursorStateForTarget(
+        event.target as HTMLElement | null,
+        readSectionSelector,
+        (readLabel as CursorAreaLabel) || 'read',
+      );
+      setVariant((prev) =>
+        prev === resolved.variant ? prev : resolved.variant,
+      );
+      setAreaLabel((prev) => (prev === resolved.label ? prev : resolved.label));
     };
 
-    const handlePointerDown = () => setPressed(true);
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        setVisible(false);
+        setHasMoved(false);
+        return;
+      }
+      setPressed(true);
+    };
     const handlePointerUp = () => setPressed(false);
     const handleMouseLeave = () => setVisible(false);
-    const handleMouseEnter = () => setVisible(true);
 
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove, {
+      passive: true,
+    });
+    window.addEventListener('pointerdown', handlePointerDown, {
+      passive: true,
+    });
     window.addEventListener('pointerup', handlePointerUp, { passive: true });
     document.addEventListener('mouseleave', handleMouseLeave);
-    document.addEventListener('mouseenter', handleMouseEnter);
 
     return () => {
+      if (rafId !== 0) window.cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('mouseleave', handleMouseLeave);
-      document.removeEventListener('mouseenter', handleMouseEnter);
     };
-  }, [active, mouseX, mouseY, readSectionSelector]);
+  }, [canTrack, readSectionSelector, readLabel]);
 
-  if (!active) return null;
+  // Render nothing at all until the first real pointermove on a fine-pointer desktop device
+  if (!shouldRender) return null;
 
-  const ringSize =
-    variant === 'read' ? 62 : variant === 'link' ? 50 : 30;
-  const pressScale = pressed ? 0.88 : 1;
+  const baseRingSize =
+    variant === 'labeled' ? 62 : variant === 'link' ? 48 : 30;
+  const ringSize = pressed ? Math.round(baseRingSize * 0.84) : baseRingSize;
+  const dotSize = pressed ? 4 : 6;
+  const pos = posRef.current;
 
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-0 pointer-events-none"
+      data-testid="custom-cursor-root"
+      className="custom-cursor-root fixed inset-0 pointer-events-none"
       style={{ zIndex: 'var(--z-cursor)' }}
     >
-      {/* Trailing outer ring */}
-      <motion.div
-        className="fixed top-0 left-0 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center border"
+      <div
+        ref={ringRef}
+        data-testid="custom-cursor-ring"
+        data-variant={variant}
+        data-label={areaLabel ?? ''}
+        data-pressed={pressed ? 'true' : 'false'}
+        className="fixed top-0 left-0 rounded-full flex items-center justify-center border"
         style={{
-          x: ringX,
-          y: ringY,
-        }}
-        animate={{
           width: ringSize,
           height: ringSize,
-          opacity: visible ? 1 : 0,
-          scale: pressScale,
+          transform: `translate3d(${pos.ringX.toFixed(1)}px, ${pos.ringY.toFixed(1)}px, 0) translate(-50%, -50%)`,
           borderColor:
-            variant === 'link'
+            variant === 'link' || variant === 'labeled'
               ? 'var(--color-accent)'
-              : variant === 'read'
-                ? 'rgba(242, 238, 232, 0.45)'
-                : 'rgba(242, 238, 232, 0.35)',
+              : 'var(--color-border-strong)',
           backgroundColor:
-            variant === 'read'
-              ? 'rgba(32, 30, 31, 0.86)'
+            variant === 'labeled'
+              ? 'var(--color-bg-glass)'
               : variant === 'link'
-                ? 'rgba(235, 94, 40, 0.12)'
-                : 'rgba(32, 30, 31, 0)',
-        }}
-        transition={{
-          duration: 0.24,
-          ease: EASE_OUT_EXPO,
+                ? 'var(--color-accent-soft)'
+                : 'transparent',
+          transition:
+            'width 200ms cubic-bezier(0.16, 1, 0.3, 1), height 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease, background-color 160ms ease',
         }}
       >
-        <AnimatePresence mode="wait">
-          {variant === 'read' && (
-            <motion.span
-              key="read-label"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-              className="font-mono lowercase tracking-[0.1em] select-none"
-              style={{
-                fontSize: '0.625rem',
-                color: 'var(--color-text)',
-              }}
-            >
-              {readLabel}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {variant === 'labeled' && areaLabel && (
+          <span
+            data-testid="custom-cursor-label"
+            className="font-mono lowercase tracking-[0.1em] select-none"
+            style={{
+              fontSize: '0.625rem',
+              color: 'var(--color-text)',
+              transform: pressed ? 'scale(0.9)' : 'scale(1)',
+              transition: 'transform 140ms ease',
+            }}
+          >
+            {areaLabel}
+          </span>
+        )}
+      </div>
 
-      {/* Immediate center dot */}
-      <motion.div
-        className="fixed top-0 left-0 -translate-x-1/2 -translate-y-1/2 rounded-full"
+      <div
+        ref={dotRef}
+        data-testid="custom-cursor-dot"
+        className="fixed top-0 left-0 rounded-full"
         style={{
-          x: mouseX,
-          y: mouseY,
-          width: 6,
-          height: 6,
+          width: dotSize,
+          height: dotSize,
+          transform: `translate3d(${pos.targetX.toFixed(1)}px, ${pos.targetY.toFixed(1)}px, 0) translate(-50%, -50%)`,
           backgroundColor: 'var(--color-accent)',
+          opacity: variant === 'labeled' ? 0 : 1,
+          transition:
+            'width 140ms ease, height 140ms ease, opacity 140ms ease',
         }}
-        animate={{
-          opacity: visible && variant !== 'read' ? 1 : 0,
-          scale: variant === 'link' ? 0.65 : pressed ? 1.35 : 1,
-        }}
-        transition={{ duration: 0.14 }}
       />
     </div>
   );

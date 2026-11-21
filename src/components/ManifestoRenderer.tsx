@@ -66,10 +66,12 @@ const markdownComponents: Components = {
   },
 
   h3({ children }) {
+    const id = slugify(extractText(children));
     return (
       <Reveal>
         <h3
-          className="mt-12 mb-5 flex items-center gap-2.5 font-mono uppercase tracking-[var(--tracking-mono)] font-medium"
+          id={id}
+          className="scroll-mt-28 mt-12 mb-5 flex items-center gap-2.5 font-mono uppercase tracking-[var(--tracking-mono)] font-medium"
           style={{
             fontSize: 'var(--text-heading-mono)',
             color: 'var(--color-text)',

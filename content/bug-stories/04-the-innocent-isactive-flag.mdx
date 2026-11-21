@@ -1,0 +1,38 @@
+---
+exhibitNumber: "04"
+title: The Innocent isActive Flag
+slug: the-innocent-isactive-flag
+date: 2022-06-15
+year: 2022
+category: naming
+tags:
+  - naming
+  - postmortem
+summary: Two services disagreed on whether user.isActive meant 'email verified' or 'paid plan current'.
+draft: false
+cause: Two services disagreed on whether user.isActive meant 'email verified' or 'paid plan current'.
+cost: 1,200 paying readers missed two consecutive Tuesday digests.
+lesson: Never name a field 'active', 'valid', or 'status' when two different lifecycles share a table.
+snippet:
+  filename: digest-filter.ts
+  language: ts
+  contextBefore:
+    - "export function canReceivePaidDigest(member: MemberRecord): boolean {"
+  brokenLine: "  return member.isActive && !member.unsubscribed;"
+  fixedLine: "  return member.subscriptionState === 'paid' && !member.unsubscribed;"
+  contextAfter:
+    - "}"
+  brokenNote: Ambiguous boolean isActive conflates email verification with billing eligibility.
+  fixedNote: Checking an explicit domain state makes the delivery rule self-documenting and safe from
+    unrelated refactors.
+---
+
+The billing worker flipped `isActive` to true when an annual renewal cleared. Six months later, an onboarding refactor reused the exact same column to mean 'clicked the welcome verification link'.
+
+## What went wrong
+
+When a cleanup migration reset unverified sign-ups, it quietly muted twelve hundred long-standing subscribers who had joined years before verification links existed.
+
+## The lasting change
+
+Both halves of the codebase had been completely logical in isolation—and completely incompatible in conversation. Renaming the column to state the exact business fact made the collision impossible to miss.

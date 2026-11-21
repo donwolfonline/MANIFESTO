@@ -1,0 +1,49 @@
+---
+principleNumber: 6
+hash: 3a8d60f
+prefix: docs
+title: review the diff like you sit beside its author
+slug: review-the-diff-like-you-sit-beside-its-author
+author: working-engineer
+date: 2026-07-08
+relativeDate: 4 months ago
+filePath: habits/code-review.md
+tags:
+  - docs
+  - git-history
+summary: "docs: review the diff like you sit beside its author"
+draft: false
+hunks:
+  - removed:
+      - Leave a terse "why is this here?" comment and disappear for four hours.
+    added:
+      - A terse "why is this here?" left on a junior engineer’s pull request reads like a courtroom
+        cross-examination.
+    blame:
+      hash: 3a8d60f
+      author: reviewer
+      when: 2026-07-08 15:40
+      note: deleted a snarky draft comment before hitting send; felt like a grown-up
+  - removed:
+      - Mix fifteen formatting nitpicks into the same thread as a real locking bug.
+    added:
+      - Name the concrete risk—a missing null check, or a lock held across an HTTP call—and offer
+        one clear way forward. Critique the seam, never the person who stitched it.
+    blame:
+      hash: 3a8d60f
+      author: pair-prog
+      when: 2026-07-08 16:02
+      note: one 10-minute huddle solved what 14 async comments made worse
+---
+
+## Hunk 1
+
+A terse "why is this here?" left on a junior engineer’s pull request reads like a courtroom cross-examination.
+
+> Blame (reviewer, 2026-07-08 15:40): deleted a snarky draft comment before hitting send; felt like a grown-up
+
+## Hunk 2
+
+Name the concrete risk—a missing null check, or a lock held across an HTTP call—and offer one clear way forward. Critique the seam, never the person who stitched it.
+
+> Blame (pair-prog, 2026-07-08 16:02): one 10-minute huddle solved what 14 async comments made worse

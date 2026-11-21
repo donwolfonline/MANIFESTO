@@ -1,0 +1,24 @@
+---
+number: 2
+slug: name-things-for-the-engineer-holding-cold-coffee-at-2am
+title: name things for the engineer holding cold coffee at 2am
+date: 2026-03-09
+tags:
+  - naming
+  - readability
+  - on-call
+summary: Clever abbreviations feel breezy at 2pm and turn hostile during a 2am production alert.
+draft: false
+---
+
+Clever abbreviations feel breezy at 2pm on a Tuesday and turn hostile during a 2am production alert. Rename `procFlag` to `skipRetryAfterCardDecline` even if it makes the line wrap.
+
+Legible code costs twenty extra keystrokes once and pays back every on-call shift after.
+
+## Why vague names compound
+
+A vague identifier forces every future reader to open two extra files to reconstruct its meaning. Multiply that detour by twenty reviews and four incidents, and a three-letter abbreviation becomes the most expensive shortcut in the module.
+
+## Naming booleans and side effects
+
+Name booleans like a direct yes-or-no question, and let functions that write state say so loudly in their verb.

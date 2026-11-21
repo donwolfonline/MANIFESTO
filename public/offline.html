@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#201e1f" />
+    <meta name="color-scheme" content="dark" />
+    <title>Offline · WORKING_COPY.md</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      @font-face {
+        font-family: 'Instrument Serif';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+      }
+
+      :root {
+        --color-bg: #201e1f;
+        --color-bg-elevated: #282527;
+        --color-bg-deep: #191718;
+        --color-text: #f2eee8;
+        --color-text-secondary: #b8b1a7;
+        --color-text-muted: #968f86;
+        --color-border: rgba(242, 238, 232, 0.12);
+        --color-border-strong: rgba(242, 238, 232, 0.24);
+        --color-accent: #f0642d;
+        --color-accent-ink: #201e1f;
+        --color-status-ok: #6ec49c;
+        --color-status-error: #f4726b;
+        --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        font-family: var(--font-body);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .shell {
+        width: 100%;
+        max-width: 86rem;
+        margin: 0 auto;
+        padding-left: clamp(1.25rem, 4.5vw, 4rem);
+        padding-right: clamp(1.25rem, 4.5vw, 4rem);
+      }
+
+      header.top-bar {
+        height: 4.25rem;
+        border-bottom: 1px solid var(--color-border);
+        background-color: var(--color-bg);
+      }
+
+      .top-bar-inner {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        font-family: var(--font-mono);
+      }
+
+      .brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.625rem;
+        color: var(--color-text);
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.8125rem;
+      }
+
+      .status-dot {
+        width: 0.375rem;
+        height: 0.375rem;
+        border-radius: 999px;
+        background-color: var(--color-status-error);
+        display: inline-block;
+      }
+
+      .exit-badge {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--color-status-error);
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-top: 3rem;
+        padding-bottom: 4.5rem;
+      }
+
+      .stack {
+        max-width: 54rem;
+        width: 100%;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+
+      .build-panel {
+        border: 1px solid var(--color-status-error);
+        background-color: var(--color-bg-deep);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .build-panel-header {
+        padding: 0.75rem 1.5rem;
+        border-bottom: 1px solid var(--color-border);
+        background-color: rgba(244, 114, 107, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .build-panel-body {
+        padding: 1.5rem 1.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        line-height: 1.7;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .cmd-line {
+        margin: 0;
+        color: var(--color-text-muted);
+      }
+
+      h1.error-title {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+        color: var(--color-status-error);
+      }
+
+      .trace-box {
+        padding-left: 1rem;
+        border-left: 1px solid var(--color-border-strong);
+        color: var(--color-text-secondary);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .trace-box p {
+        margin: 0;
+      }
+
+      .trace-box code {
+        color: var(--color-text);
+      }
+
+      .action-bar {
+        padding: 1rem 1.75rem;
+        border-top: 1px solid var(--color-border);
+        background-color: var(--color-bg);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+      }
+
+      .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 2px;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid var(--color-border-strong);
+        background: transparent;
+        color: var(--color-text);
+      }
+
+      .btn-primary {
+        background-color: var(--color-accent);
+        border-color: var(--color-accent);
+        color: var(--color-accent-ink);
+      }
+
+      .btn-secondary {
+        border-color: var(--color-border);
+        color: var(--color-text-secondary);
+      }
+
+      .btn:hover,
+      .btn:focus-visible {
+        border-color: var(--color-accent);
+      }
+
+      .principle-card {
+        border: 1px solid var(--color-border-strong);
+        background-color: var(--color-bg-elevated);
+        border-radius: 4px;
+        padding: 1.75rem 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .principle-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .principle-title {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-weight: 400;
+        font-size: clamp(1rem, 1.5vw, 1.3rem);
+        color: var(--color-text);
+      }
+
+      .principle-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .principle-body p {
+        margin: 0;
+        max-width: 62ch;
+        font-size: clamp(1.0625rem, 0.55vw + 0.92rem, 1.2rem);
+        line-height: 1.75;
+        color: var(--color-text-secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top-bar">
+      <div class="shell top-bar-inner">
+        <a href="/" class="brand-link">
+          <span aria-hidden="true" class="status-dot" id="connection-dot"></span>
+          <span>~/working_copy.md</span>
+        </a>
+        <span class="exit-badge" id="connection-badge">exit code 503 · offline</span>
+      </div>
+    </header>
+
+    <main aria-label="Offline Fallback" class="shell">
+      <div class="stack">
+        <!-- Failing Build Log Panel (styled identically to 404 NotFoundPage) -->
+        <div class="build-panel">
+          <div class="build-panel-header">
+            <span style="color: var(--color-status-error)" id="panel-status">
+              ✗ build failed · network unreachable
+            </span>
+            <span style="color: var(--color-text-muted)">sw / cache</span>
+          </div>
+
+          <div class="build-panel-body">
+            <p class="cmd-line">
+              $ fetch --network-first <span id="offline-path">/</span>
+            </p>
+
+            <h1 class="error-title">error: network connection offline</h1>
+
+            <div class="trace-box">
+              <p>
+                at sw.js:503 — no live socket for
+                <code id="offline-quote">&ldquo;/&rdquo;</code>
+                and route snapshot is not yet in cache
+              </p>
+              <p style="color: var(--color-text-muted)">
+                hint: previously visited pages and static assets are cached locally.
+                Reconnect and retry, or read a cached working principle below.
+              </p>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button type="button" id="retry-btn" class="btn btn-primary">
+              ↻ retry connection
+            </button>
+            <a href="/" class="btn">← go home</a>
+            <a href="/today" class="btn btn-secondary">open /today</a>
+            <a href="/terminal" class="btn btn-secondary">open /terminal</a>
+          </div>
+        </div>
+
+        <!-- Random Principle consolation placard -->
+        <section aria-label="Random principle" class="principle-card">
+          <div class="principle-meta">
+            <span style="color: var(--color-accent)" id="principle-kicker">
+              while you are offline · principle 01
+            </span>
+            <button type="button" id="next-principle-btn" class="btn btn-secondary">
+              another principle ↻
+            </button>
+          </div>
+
+          <h2 class="principle-title">
+            <span aria-hidden="true" style="color: var(--color-text-muted); margin-right: 0.5rem">###</span>
+            <span id="principle-heading">1. Write the pull request description before hitting submit.</span>
+          </h2>
+
+          <div class="principle-body" id="principle-paragraphs">
+            <p>
+              Not for the reviewer. For yourself. Half the bugs I have caught in my own code showed up the moment I had to explain in plain English why the change existed.
+            </p>
+            <p>
+              If a paragraph feels awkward to write, the diff is usually doing two jobs at once.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="/offline.js" defer></script>
+  </body>
+</html>

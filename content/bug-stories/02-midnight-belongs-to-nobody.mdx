@@ -1,0 +1,38 @@
+---
+exhibitNumber: "02"
+title: Midnight Belongs to Nobody
+slug: midnight-belongs-to-nobody
+date: 2023-06-15
+year: 2023
+category: time-zones
+tags:
+  - time-zones
+  - postmortem
+summary: Parsed a date-only string with new Date('YYYY-MM-DD'), defaulting silently to UTC midnight.
+draft: false
+cause: Parsed a date-only string with new Date('YYYY-MM-DD'), defaulting silently to UTC midnight.
+cost: 140 Sunday bakery deliveries dispatched on Saturday evening across the west coast.
+lesson: Calendar dates without clocks are plain strings or tuples, never UTC timestamps.
+snippet:
+  filename: schedule-date.ts
+  language: ts
+  contextBefore:
+    - "export function parseLocalCalendarDate(isoDate: string): Date {"
+  brokenLine: "  return new Date(isoDate);"
+  fixedLine: "  const [y, m, d] = isoDate.split('-').map(Number); return new Date(y, m - 1, d);"
+  contextAfter:
+    - "}"
+  brokenNote: Date-only ISO strings parse as UTC midnight, shifting backward one calendar day in
+    negative UTC offsets.
+  fixedNote: Constructing from explicit numeric components keeps the calendar day anchored to local midnight.
+---
+
+A regional delivery scheduler stored pickup dates as plain ISO calendar strings like '2023-10-29'. On the server in Frankfurt everything looked spotless, and every automated check passed.
+
+## What went wrong
+
+When dispatchers in Oregon opened the Sunday route sheet, JavaScript parsed the date-only string as midnight UTC and rendered it in Pacific time—5:00pm the previous afternoon. Drivers loaded crates a full day early.
+
+## The lasting change
+
+Dates without a clock time do not live on a timeline; they live on a wall calendar. Splitting year, month, and day explicitly stopped the browser from inventing a time zone we never asked for.

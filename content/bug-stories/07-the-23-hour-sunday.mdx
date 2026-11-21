@@ -1,0 +1,38 @@
+---
+exhibitNumber: "07"
+title: The 23-Hour Sunday
+slug: the-23-hour-sunday
+date: 2025-06-15
+year: 2025
+category: time-zones
+tags:
+  - time-zones
+  - postmortem
+summary: Added 86,400,000 milliseconds to compute 'same time tomorrow', ignoring daylight saving.
+draft: false
+cause: Added 86,400,000 milliseconds to compute 'same time tomorrow', ignoring daylight saving.
+cost: 62 dental clinic reminder texts fired at 8:00am instead of 9:00am on spring-forward Sunday.
+lesson: A calendar day is not always 24 hours—sometimes it is 23, and once a year it is 25.
+snippet:
+  filename: next-day.ts
+  language: ts
+  contextBefore:
+    - "export function addOneLocalDay(appointment: Date): Date {"
+    - "  const next = new Date(appointment.getTime());"
+  brokenLine: "  return new Date(appointment.getTime() + 86_400_000);"
+  fixedLine: "  next.setDate(next.getDate() + 1); return next;"
+  contextAfter:
+    - "}"
+  brokenNote: Adding 86,400,000ms assumes every day has 24 hours, drifting by 1 hour across DST transitions.
+  fixedNote: setDate(day + 1) advances one calendar day while preserving the intended local wall-clock hour.
+---
+
+An appointment reminder helper scheduled follow-up messages by adding `24 * 60 * 60 * 1000` to the patient's timestamp. It worked faithfully for three hundred and sixty-four days a year.
+
+## What went wrong
+
+On the second Sunday in March, clocks jumped forward an hour at 2:00am. Suddenly twenty-four real hours after Saturday at 9:00am landed on Sunday at 10:00am—or 8:00am when subtracting backward for morning reminders.
+
+## The lasting change
+
+Switching from raw millisecond arithmetic to calendar-day addition kept 9:00am pinned firmly to 9:00am regardless of how many hours lived in the night between.

@@ -1,0 +1,26 @@
+---
+number: 6
+slug: review-the-diff-like-you-sit-beside-its-author
+title: review the diff like you sit beside its author
+date: 2026-07-08
+tags:
+  - code-review
+  - kindness
+  - mentorship
+summary: Name the concrete risk, offer one clear path forward, and critique the seam rather than the person.
+draft: false
+---
+
+A terse *"why is this here?"* left on a junior engineer’s pull request reads like a courtroom cross-examination.
+
+- Name the concrete risk—a missing null check, or a lock held across an HTTP call.
+- Offer one clear way forward instead of a riddle.
+- Critique the *seam*, never the person who stitched it.
+
+## Separating blocking bugs from personal taste
+
+Prefix minor style suggestions clearly as non-blocking so the author knows immediately which thread guards correctness and which thread is optional polish.
+
+## When to switch to a ten-minute call
+
+If a review thread crosses three back-and-forth replies without converging, jump on a brief pairing call and summarize the decision back on the PR.

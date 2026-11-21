@@ -1,0 +1,21 @@
+---
+number: 4
+slug: split-the-400-line-function-before-adding-one-more-branch
+title: split the 400-line function before adding one more branch
+date: 2026-05-19
+tags:
+  - refactoring
+  - seams
+  - architecture
+summary: Carve out one honest seam with a clear name and unit test instead of tucking a ninth branch
+  into a 400-line controller.
+draft: false
+---
+
+Every bloated controller starts with someone whispering, *"one tiny `if` statement won’t hurt."* Before you tuck a ninth special case into a 400-line `syncOrder` function, carve out one honest seam with a clear name and a unit test.
+
+You do not need to rewrite the whole module; leave a doorway the next person can actually walk through.
+
+## Finding the natural seam
+
+Look for a cluster of lines that share the same two inputs and compute one clear value without mutating three outer variables. Pull that piece out first, give it a truthful signature, and stop while the diff stays easy to review.

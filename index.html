@@ -1,70 +1,106 @@
 <!doctype html>
+<!--
+  =====================================================================
+   Hey, fellow source reader.
+
+   If you opened View Source or DevTools out of sheer curiosity about
+   how this page was put together, you are exactly who this working
+   copy was written for.
+
+   Everything here is plain React, TypeScript, CSS custom properties,
+   and a lot of quiet care for the seams. No trackers, no ad pixels,
+   no mystery bloat.
+
+   P.S. Try pressing Cmd/Ctrl+K, hitting "?" for shortcuts, visiting
+   /terminal, or leaving a one-line principle on /wall.
+  =====================================================================
+-->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#201e1f" />
     <meta name="color-scheme" content="dark" />
 
-    <title>MANIFESTO.md — A Working Manifesto on Quiet Craft</title>
+    <title>WORKING_COPY.md — A Field Manual for Working Engineers</title>
     <meta
       name="description"
-      content="A personal manifesto written as a plain-text Markdown file and rendered as an editorial, quiet web page on durable tools, attention, and human craft."
+      content="A quiet field manual for working software engineers—honest about tight deadlines, shifting stacks, and self-doubt, and stubbornly devoted to making software that holds up."
     />
 
     <!-- Replace with your deployed production URL before publishing -->
-    <link rel="canonical" href="https://manifesto.yourdomain.com/" />
+    <link rel="canonical" href="https://workingcopy.yourdomain.com/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="WORKING_COPY" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="MANIFESTO.md" />
+    <meta property="og:site_name" content="WORKING_COPY.md" />
     <meta
       property="og:title"
-      content="MANIFESTO.md — A Working Manifesto on Quiet Craft"
+      content="WORKING_COPY.md — A Field Manual for Working Engineers"
     />
     <meta
       property="og:description"
-      content="A working manifesto. Notes-to-self, mostly. Written in plain text so it outlives every tool that renders it."
+      content="A field manual for working engineers. Notes-to-self, mostly—honest about deadlines, shifting stacks, and building software that holds up."
     />
-    <meta property="og:url" content="https://manifesto.yourdomain.com/" />
+    <meta property="og:url" content="https://workingcopy.yourdomain.com/" />
     <meta
       property="og:image"
-      content="https://manifesto.yourdomain.com/og-image.png"
+      content="https://workingcopy.yourdomain.com/og-image.png"
     />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="MANIFESTO.md — warm near-black editorial card with off-white serif typography and warm orange accent."
+      content="WORKING_COPY.md — warm near-black editorial card with off-white serif typography and warm orange accent."
     />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="MANIFESTO.md — A Working Manifesto on Quiet Craft"
+      content="WORKING_COPY.md — A Field Manual for Working Engineers"
     />
     <meta
       name="twitter:description"
-      content="A working manifesto. Notes-to-self, mostly. Written in plain text so it outlives every tool that renders it."
+      content="A field manual for working engineers. Notes-to-self, mostly—honest about deadlines, shifting stacks, and building software that holds up."
     />
     <meta
       name="twitter:image"
-      content="https://manifesto.yourdomain.com/og-image.png"
+      content="https://workingcopy.yourdomain.com/og-image.png"
     />
     <meta
       name="twitter:image:alt"
-      content="MANIFESTO.md — warm near-black editorial card with off-white serif typography and warm orange accent."
+      content="WORKING_COPY.md — warm near-black editorial card with off-white serif typography and warm orange accent."
     />
 
-    <!-- Fonts (minimal weight subset with display=swap) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Self-hosted Latin WOFF2 fonts: preload only the 2 critical above-the-fold weights -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400..500;1,6..72,400&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      href="/fonts/instrument-serif-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/jetbrains-mono-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
   </head>
   <body>

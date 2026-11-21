@@ -1,0 +1,25 @@
+---
+number: 3
+slug: delete-dead-code-before-celebrating-new-code
+title: delete dead code before celebrating new code
+date: 2026-04-03
+tags:
+  - deletion
+  - maintenance
+  - craft
+summary: A pull request reading +6 / -412 is one of the cleanest gifts you can hand your team.
+draft: false
+---
+
+Adding a feature earns applause in Slack, while removing a 400-line legacy checkout fallback nobody has triggered since 2023 barely gets a thumbs-up.
+
+> Remove it anyway.
+> A pull request reading `+6 / -412` is one of the cleanest gifts you can hand your team.
+
+## Proving a code path is truly dead
+
+Check production telemetry, grep for dynamic references, and verify callers across scheduled jobs before lifting the red pencil. Git preserves every deleted line safely in history, so nothing worth rescuing is ever lost.
+
+## Why subtraction lowers cognitive load
+
+Every line you retire is one fewer branch that shows up in global search, confuses a new teammate, or breaks during a framework upgrade next winter.

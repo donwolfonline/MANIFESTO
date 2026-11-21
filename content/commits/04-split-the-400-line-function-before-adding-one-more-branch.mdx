@@ -1,0 +1,50 @@
+---
+principleNumber: 4
+hash: 74c1a83
+prefix: refactor
+title: split the 400-line function before adding one more branch
+slug: split-the-400-line-function-before-adding-one-more-branch
+author: working-engineer
+date: 2026-05-19
+relativeDate: 6 months ago
+filePath: habits/seams.md
+tags:
+  - refactor
+  - git-history
+summary: "refactor: split the 400-line function before adding one more branch"
+draft: false
+hunks:
+  - removed:
+      - Tuck a ninth special-case `if` inside `syncOrder` because "one tiny branch will not hurt."
+    added:
+      - Every bloated controller starts with someone whispering, "one tiny `if` statement won’t
+        hurt." Before you tuck a ninth special case into a 400-line `syncOrder` function, carve out
+        one honest seam with a clear name and a unit test.
+    blame:
+      hash: 74c1a83
+      author: past-me
+      when: 2026-05-19 21:14
+      note: "ran git blame to judge the author of branch #8; it was my own commit"
+  - removed:
+      - Put off every refactor until you can rewrite the entire service from scratch.
+    added:
+      - You do not need to rewrite the whole module; leave a doorway the next person can actually
+        walk through.
+    blame:
+      hash: 74c1a83
+      author: carpenter
+      when: 2026-05-19 21:38
+      note: extracted one 24-line helper and wrote three tests in ten minutes
+---
+
+## Hunk 1
+
+Every bloated controller starts with someone whispering, "one tiny `if` statement won’t hurt." Before you tuck a ninth special case into a 400-line `syncOrder` function, carve out one honest seam with a clear name and a unit test.
+
+> Blame (past-me, 2026-05-19 21:14): ran git blame to judge the author of branch #8; it was my own commit
+
+## Hunk 2
+
+You do not need to rewrite the whole module; leave a doorway the next person can actually walk through.
+
+> Blame (carpenter, 2026-05-19 21:38): extracted one 24-line helper and wrote three tests in ten minutes

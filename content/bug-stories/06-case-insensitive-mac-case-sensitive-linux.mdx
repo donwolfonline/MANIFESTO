@@ -1,0 +1,39 @@
+---
+exhibitNumber: "06"
+title: Case-Insensitive Mac, Case-Sensitive Linux
+slug: case-insensitive-mac-case-sensitive-linux
+date: 2023-06-15
+year: 2023
+category: works-on-my-machine
+tags:
+  - works-on-my-machine
+  - postmortem
+summary: Imported './SummaryCard' when Git tracked 'summaryCard.tsx', passing locally on macOS.
+draft: false
+cause: Imported './SummaryCard' when Git tracked 'summaryCard.tsx', passing locally on macOS.
+cost: 35 tense minutes debugging a broken production deploy right before a live review.
+lesson: Turn on forceConsistentCasingInFileNames and trust Linux CI over your laptop filesystem.
+snippet:
+  filename: ReportView.tsx
+  language: tsx
+  contextBefore:
+    - "// File on disk in Git: ./summaryCard.tsx"
+    - import { formatTotal } from '../lib/money';
+  brokenLine: import { SummaryCard } from './SummaryCard';
+  fixedLine: import { SummaryCard } from './summaryCard';
+  contextAfter:
+    - export function ReportView() { return <SummaryCard />; }
+  brokenNote: macOS default case-insensitive APFS resolves './SummaryCard', but Linux containers fail
+    at build time.
+  fixedNote: Matching the exact tracked filename casing ensures identical resolution on macOS and Linux CI.
+---
+
+The branch built cleanly on my laptop, every component rendered crisply on localhost, and I pushed with full confidence twenty minutes before a review.
+
+## What went wrong
+
+The Linux deployment container immediately halted with 'Cannot find module ./SummaryCard'. I stared at my sidebar where the file was sitting right there in plain sight—spelled with a lowercase 's' that APFS had kindly forgiven and Git had never renamed.
+
+## The lasting change
+
+Enabling TypeScript's consistent-casing compiler check and using `git mv` for capitalization changes closed that trap permanently.

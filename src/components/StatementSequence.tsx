@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useRef, useState } from 'react';
 import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-  type MotionValue,
-} from 'framer-motion';
+  usePrefersReducedMotion,
+  useScrollScrub,
+} from '../lib/useViewportActivity';
 
 export interface StatementPhrase {
   /** Leading text before the emphasized word */
@@ -22,31 +20,32 @@ export interface StatementPhrase {
 
 export const DEFAULT_STATEMENTS: StatementPhrase[] = [
   {
-    lead: 'Software got ',
+    lead: 'Deadlines got ',
+    emphasis: 'tighter',
+    punctuation: '.',
+  },
+  {
+    lead: 'Stacks got ',
     emphasis: 'louder',
     punctuation: '.',
   },
   {
-    emphasis: 'Faster',
+    lead: 'Half the room is ',
+    emphasis: 'guessing',
     punctuation: '.',
   },
   {
-    lead: 'More ',
-    emphasis: 'disposable',
-    punctuation: '.',
-  },
-  {
-    lead: 'Nobody asked for ',
+    lead: 'Nobody admits ',
     emphasis: 'that',
     punctuation: '.',
   },
   {
-    lead: "I'm not building for the ",
-    emphasis: 'feed',
+    lead: "I'm not writing for the ",
+    emphasis: 'keynote',
     punctuation: '.',
   },
   {
-    lead: "I'm building for ",
+    lead: "I'm writing for ",
     emphasis: 'this',
     punctuation: ':',
     accentWord: true,
@@ -82,94 +81,78 @@ function PhraseText({ phrase }: { phrase: StatementPhrase }) {
   );
 }
 
-interface StatementSlideProps {
-  phrase: StatementPhrase;
-  index: number;
-  total: number;
-  progress: MotionValue<number>;
-  isActive: boolean;
-}
-
-function StatementSlide({
-  phrase,
-  index,
-  total,
-  progress,
-  isActive,
-}: StatementSlideProps) {
-  const isLast = index === total - 1;
-  const step = 1 / total;
-  const segStart = index * step;
-  const segEnd = (index + 1) * step;
-
-  // Enter over first 28% of the phrase's scroll slot, hold clearly in the middle,
-  // and fade out cleanly over the final 22% before the next phrase arrives.
-  const enterEnd = segStart + step * 0.28;
-  const holdEnd = segEnd - step * 0.22;
-
-  const opacity = useTransform(
-    progress,
-    isLast ? [segStart, enterEnd, 1] : [segStart, enterEnd, holdEnd, segEnd],
-    isLast ? [0, 1, 1] : [0, 1, 1, 0],
-  );
-
-  const y = useTransform(
-    progress,
-    isLast ? [segStart, enterEnd, 1] : [segStart, enterEnd, holdEnd, segEnd],
-    isLast ? [36, 0, 0] : [36, 0, 0, -24],
-  );
-
-  // Pure GPU-composited scale replaces per-frame CSS blur() for locked 60-120fps scrolling
-  const scale = useTransform(
-    progress,
-    isLast ? [segStart, enterEnd, 1] : [segStart, enterEnd, holdEnd, segEnd],
-    isLast ? [0.965, 1, 1] : [0.965, 1, 1, 0.985],
-  );
-
-  return (
-    <motion.p
-      aria-hidden={!isActive}
-      className="col-start-1 row-start-1 m-0 max-w-[16ch] font-display font-normal text-center"
-      style={{
-        fontSize: 'clamp(2.1rem, 8.5vw, 8.25rem)',
-        lineHeight: 0.98,
-        letterSpacing: 'var(--tracking-display)',
-        color: 'var(--color-text)',
-        opacity,
-        y,
-        scale,
-        willChange: isActive ? 'transform, opacity' : 'auto',
-        pointerEvents: isActive ? 'auto' : 'none',
-      }}
-    >
-      <PhraseText phrase={phrase} />
-    </motion.p>
-  );
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * Math.min(1, Math.max(0, t));
 }
 
 export function StatementSequence({
   statements = DEFAULT_STATEMENTS,
 }: StatementSequenceProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const prefersReducedMotion = useReducedMotion();
+  const progressBarRef = useRef<HTMLSpanElement | null>(null);
+  const slideRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Start tracking slightly before the pinned stage locks (start 18%) so the
-  // opening statement glides in cleanly with zero blank dead-space on arrival.
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start 18%', 'end end'],
-  });
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-
-    return scrollYProgress.on('change', (latest) => {
+  // Scrub all 6 phrases via GPU transforms — pauses automatically when off-screen or tab is hidden
+  useScrollScrub(
+    sectionRef,
+    (latest) => {
       const clamped = Math.min(0.9999, Math.max(0, latest));
-      const nextIndex = Math.floor(clamped * statements.length);
+      const total = statements.length;
+      const step = 1 / total;
+      const nextIndex = Math.floor(clamped * total);
+
       setActiveIndex((prev) => (prev === nextIndex ? prev : nextIndex));
-    });
-  }, [scrollYProgress, statements.length, prefersReducedMotion]);
+
+      if (progressBarRef.current) {
+        progressBarRef.current.style.transform = `scaleY(${latest.toFixed(4)})`;
+      }
+
+      for (let i = 0; i < total; i++) {
+        const el = slideRefs.current[i];
+        if (!el) continue;
+
+        const isLast = i === total - 1;
+        const segStart = i * step;
+        const segEnd = (i + 1) * step;
+        const enterEnd = segStart + step * 0.28;
+        const holdEnd = segEnd - step * 0.22;
+
+        let opacity: number;
+        let y: number;
+        let scale: number;
+
+        if (latest <= segStart) {
+          opacity = 0;
+          y = 36;
+          scale = 0.965;
+        } else if (latest < enterEnd) {
+          const t = (latest - segStart) / (enterEnd - segStart);
+          opacity = lerp(0, 1, t);
+          y = lerp(36, 0, t);
+          scale = lerp(0.965, 1, t);
+        } else if (isLast || latest <= holdEnd) {
+          opacity = 1;
+          y = 0;
+          scale = 1;
+        } else if (latest < segEnd) {
+          const t = (latest - holdEnd) / (segEnd - holdEnd);
+          opacity = lerp(1, 0, t);
+          y = lerp(0, -24, t);
+          scale = lerp(1, 0.985, t);
+        } else {
+          opacity = 0;
+          y = -24;
+          scale = 0.985;
+        }
+
+        el.style.opacity = opacity.toFixed(3);
+        el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
+      }
+    },
+    { disabled: prefersReducedMotion, startViewportFraction: 0.18 },
+  );
 
   // Accessible static layout when prefers-reduced-motion is active (no pinning)
   if (prefersReducedMotion) {
@@ -265,11 +248,12 @@ export function StatementSequence({
             className="relative w-[1.5px] h-32 sm:h-44 overflow-hidden"
             style={{ backgroundColor: 'var(--color-border)' }}
           >
-            <motion.span
+            <span
+              ref={progressBarRef}
               className="absolute inset-0 origin-top block"
               style={{
                 backgroundColor: 'var(--color-accent)',
-                scaleY: scrollYProgress,
+                transform: 'scaleY(0)',
               }}
             />
           </div>
@@ -288,16 +272,33 @@ export function StatementSequence({
         {/* Stacked huge-type statements appearing in the same focal spot */}
         <div className="editorial-shell flex items-center justify-center pl-11 pr-5 sm:px-16">
           <div className="grid place-items-center w-full">
-            {statements.map((phrase, index) => (
-              <StatementSlide
-                key={index}
-                phrase={phrase}
-                index={index}
-                total={statements.length}
-                progress={scrollYProgress}
-                isActive={activeIndex === index}
-              />
-            ))}
+            {statements.map((phrase, index) => {
+              const isActive = activeIndex === index;
+              return (
+                <p
+                  key={index}
+                  ref={(node) => {
+                    slideRefs.current[index] = node;
+                  }}
+                  aria-hidden={!isActive}
+                  className="col-start-1 row-start-1 m-0 max-w-[16ch] font-display font-normal text-center"
+                  style={{
+                    fontSize: 'clamp(2.1rem, 8.5vw, 8.25rem)',
+                    lineHeight: 0.98,
+                    letterSpacing: 'var(--tracking-display)',
+                    color: 'var(--color-text)',
+                    opacity: index === 0 ? 1 : 0,
+                    transform:
+                      index === 0
+                        ? 'translate3d(0, 0, 0) scale(1)'
+                        : 'translate3d(0, 36px, 0) scale(0.965)',
+                    pointerEvents: isActive ? 'auto' : 'none',
+                  }}
+                >
+                  <PhraseText phrase={phrase} />
+                </p>
+              );
+            })}
           </div>
         </div>
       </div>

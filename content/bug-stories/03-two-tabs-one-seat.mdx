@@ -1,0 +1,39 @@
+---
+exhibitNumber: "03"
+title: Two Tabs, One Seat
+slug: two-tabs-one-seat
+date: 2025-06-15
+year: 2025
+category: concurrency
+tags:
+  - concurrency
+  - postmortem
+summary: Checked seat availability in application memory before writing inside a separate query.
+draft: false
+cause: Checked seat availability in application memory before writing inside a separate query.
+cost: Three double-booked workshop seats and one frantic hunt for folding chairs.
+lesson: If two requests can interleave between read and write, move the invariant into the database.
+snippet:
+  filename: reserve-seat.sql
+  language: sql
+  contextBefore:
+    - -- Atomic reservation inside reservations(workshop_id, seat_code UNIQUE)
+  brokenLine: INSERT INTO reservations (workshop_id, seat_code, guest_id) VALUES ($1, $2, $3);
+  fixedLine: INSERT INTO reservations (workshop_id, seat_code, guest_id) VALUES ($1, $2, $3) ON
+    CONFLICT (workshop_id, seat_code) DO NOTHING RETURNING id;
+  contextAfter:
+    - -- Return 409 Conflict when no row is returned.
+  brokenNote: Relying on a prior SELECT allows concurrent requests to both pass the check before
+    either inserts.
+  fixedNote: The unique index plus ON CONFLICT guarantees at most one caller claims the seat atomically.
+---
+
+Registration for an intimate woodworking workshop opened at noon sharp. The handler queried whether seat B12 was free, paused for twelve milliseconds to format a confirmation token, and inserted the reservation.
+
+## What went wrong
+
+Two eager attendees clicked 'Reserve' inside the same fourteen-millisecond window. Both SELECT statements returned zero rows, both INSERT statements succeeded, and both attendees received proud confirmation receipts for the exact same bench.
+
+## The lasting change
+
+Moving uniqueness to a database constraint with an atomic ON CONFLICT guard turned a race condition into a clean, predictable conflict response.

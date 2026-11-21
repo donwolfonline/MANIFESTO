@@ -1,48 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useRef } from 'react';
 import {
   CLOSING_SIGN_OFF,
   DO_MORE_ITEMS,
   STOP_DOING_ITEMS,
   type ClosingSignOff,
 } from '../data/manifestoItems';
-import { EASE_OUT_EXPO } from '../lib/motion';
+import {
+  useInViewOnce,
+  usePrefersReducedMotion,
+} from '../lib/useViewportActivity';
 import { HoverLink } from './HoverLink';
 
 interface ClosingSectionProps {
   stopItems?: string[];
   doMoreItems?: string[];
   signOff?: ClosingSignOff;
-}
-
-function useRevealOnce(prefersReducedMotion: boolean) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [entered, setEntered] = useState<boolean>(prefersReducedMotion);
-
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setEntered(true);
-      return;
-    }
-
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setEntered(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.18, rootMargin: '0px 0px -8% 0px' },
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [prefersReducedMotion]);
-
-  return { ref, entered };
 }
 
 function StopListItem({
@@ -56,25 +28,21 @@ function StopListItem({
   entered: boolean;
   prefersReducedMotion: boolean;
 }) {
+  const show = prefersReducedMotion || entered;
+  const itemDelayMs = index * 80;
   const strikeDelayMs = 240 + index * 95;
 
   return (
-    <motion.li
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-      animate={
-        prefersReducedMotion || entered
-          ? { opacity: 1, y: 0 }
-          : { opacity: 0, y: 12 }
-      }
-      transition={{
-        duration: prefersReducedMotion ? 0 : 0.55,
-        delay: prefersReducedMotion ? 0 : index * 0.08,
-        ease: EASE_OUT_EXPO,
-      }}
+    <li
       className="flex items-baseline gap-3.5 font-body"
       style={{
         fontSize: 'var(--text-body)',
         lineHeight: 'var(--leading-body)',
+        opacity: show ? 1 : 0,
+        transform: show ? 'translate3d(0, 0, 0)' : 'translate3d(0, 12px, 0)',
+        transition: prefersReducedMotion
+          ? undefined
+          : `opacity 550ms cubic-bezier(0.16, 1, 0.3, 1) ${itemDelayMs}ms, transform 550ms cubic-bezier(0.16, 1, 0.3, 1) ${itemDelayMs}ms`,
       }}
     >
       <span
@@ -89,20 +57,17 @@ function StopListItem({
         ×
       </span>
 
-      {/* Multi-line safe left-to-right strikethrough drawn via inline background-size */}
       <span
         className="inline"
         style={{
-          color:
-            prefersReducedMotion || entered
-              ? 'var(--color-text-muted)'
-              : 'var(--color-text-secondary)',
+          color: show
+            ? 'var(--color-text-muted)'
+            : 'var(--color-text-secondary)',
           backgroundImage:
             'linear-gradient(rgba(240, 100, 45, 0.76), rgba(240, 100, 45, 0.76))',
           backgroundRepeat: 'no-repeat',
           backgroundPosition: '0% 54%',
-          backgroundSize:
-            prefersReducedMotion || entered ? '100% 1.25px' : '0% 1.25px',
+          backgroundSize: show ? '100% 1.25px' : '0% 1.25px',
           transitionProperty: 'background-size, color',
           transitionDuration: prefersReducedMotion ? '0ms' : '680ms, 520ms',
           transitionDelay: prefersReducedMotion ? '0ms' : `${strikeDelayMs}ms`,
@@ -111,7 +76,7 @@ function StopListItem({
       >
         {text}
       </span>
-    </motion.li>
+    </li>
   );
 }
 
@@ -126,29 +91,23 @@ function DoMoreListItem({
   entered: boolean;
   prefersReducedMotion: boolean;
 }) {
-  const itemDelay = index * 0.08;
+  const show = prefersReducedMotion || entered;
+  const itemDelayMs = index * 80;
 
   return (
-    <motion.li
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-      animate={
-        prefersReducedMotion || entered
-          ? { opacity: 1, y: 0 }
-          : { opacity: 0, y: 12 }
-      }
-      transition={{
-        duration: prefersReducedMotion ? 0 : 0.55,
-        delay: prefersReducedMotion ? 0 : itemDelay,
-        ease: EASE_OUT_EXPO,
-      }}
+    <li
       className="flex items-start gap-3.5 font-body"
       style={{
         fontSize: 'var(--text-body)',
         lineHeight: 'var(--leading-body)',
         color: 'var(--color-text-secondary)',
+        opacity: show ? 1 : 0,
+        transform: show ? 'translate3d(0, 0, 0)' : 'translate3d(0, 12px, 0)',
+        transition: prefersReducedMotion
+          ? undefined
+          : `opacity 550ms cubic-bezier(0.16, 1, 0.3, 1) ${itemDelayMs}ms, transform 550ms cubic-bezier(0.16, 1, 0.3, 1) ${itemDelayMs}ms`,
       }}
     >
-      {/* Animated hand-drawn checkmark stroke */}
       <span
         aria-hidden="true"
         className="shrink-0 mt-[0.42em] flex items-center justify-center"
@@ -160,33 +119,27 @@ function DoMoreListItem({
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <motion.path
+          <path
             d="M2.5 8.5L6.2 12L13.5 4.2"
             stroke="var(--color-accent)"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            initial={
-              prefersReducedMotion
-                ? false
-                : { pathLength: 0, opacity: 0 }
-            }
-            animate={
-              prefersReducedMotion || entered
-                ? { pathLength: 1, opacity: 1 }
-                : { pathLength: 0, opacity: 0 }
-            }
-            transition={{
-              duration: prefersReducedMotion ? 0 : 0.5,
-              delay: prefersReducedMotion ? 0 : 0.16 + itemDelay,
-              ease: EASE_OUT_EXPO,
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={show ? 0 : 1}
+            style={{
+              opacity: show ? 1 : 0,
+              transition: prefersReducedMotion
+                ? undefined
+                : `stroke-dashoffset 500ms cubic-bezier(0.16, 1, 0.3, 1) ${160 + itemDelayMs}ms, opacity 280ms ease ${160 + itemDelayMs}ms`,
             }}
           />
         </svg>
       </span>
 
       <span>{text}</span>
-    </motion.li>
+    </li>
   );
 }
 
@@ -195,12 +148,26 @@ export function ClosingSection({
   doMoreItems = DO_MORE_ITEMS,
   signOff = CLOSING_SIGN_OFF,
 }: ClosingSectionProps) {
-  const prefersReducedMotion = Boolean(useReducedMotion());
-  const stopReveal = useRevealOnce(prefersReducedMotion);
-  const doMoreReveal = useRevealOnce(prefersReducedMotion);
-  const signOffReveal = useRevealOnce(prefersReducedMotion);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const stopRef = useRef<HTMLDivElement | null>(null);
+  const doMoreRef = useRef<HTMLDivElement | null>(null);
+  const signOffRef = useRef<HTMLDivElement | null>(null);
+
+  const stopEntered = useInViewOnce(stopRef, prefersReducedMotion, {
+    threshold: 0.18,
+    rootMargin: '0px 0px -8% 0px',
+  });
+  const doMoreEntered = useInViewOnce(doMoreRef, prefersReducedMotion, {
+    threshold: 0.18,
+    rootMargin: '0px 0px -8% 0px',
+  });
+  const signOffEntered = useInViewOnce(signOffRef, prefersReducedMotion, {
+    threshold: 0.18,
+    rootMargin: '0px 0px -8% 0px',
+  });
 
   const signatureParts = signOff.signature.match(/^([—–-])\s*(.+)$/);
+  const showSignOff = prefersReducedMotion || signOffEntered;
 
   return (
     <section
@@ -213,10 +180,8 @@ export function ClosingSection({
       }}
     >
       <div className="editorial-shell">
-        {/* Two-column lists: Stop doing vs. Do more */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-14 lg:gap-24">
-          {/* Left column: things I am trying to stop doing */}
-          <div ref={stopReveal.ref}>
+          <div ref={stopRef}>
             <h2
               className="m-0 mb-8 sm:mb-10 pb-4 border-b font-mono font-normal tracking-[0.02em]"
               style={{
@@ -241,15 +206,14 @@ export function ClosingSection({
                   key={item}
                   text={item}
                   index={idx}
-                  entered={stopReveal.entered}
+                  entered={stopEntered}
                   prefersReducedMotion={prefersReducedMotion}
                 />
               ))}
             </ul>
           </div>
 
-          {/* Right column: things I am trying to do more */}
-          <div ref={doMoreReveal.ref}>
+          <div ref={doMoreRef}>
             <h2
               className="m-0 mb-8 sm:mb-10 pb-4 border-b font-mono font-normal tracking-[0.02em]"
               style={{
@@ -274,7 +238,7 @@ export function ClosingSection({
                   key={item}
                   text={item}
                   index={idx}
-                  entered={doMoreReveal.entered}
+                  entered={doMoreEntered}
                   prefersReducedMotion={prefersReducedMotion}
                 />
               ))}
@@ -282,26 +246,23 @@ export function ClosingSection({
           </div>
         </div>
 
-        {/* Centered editorial sign-off block */}
         <div
-          ref={signOffReveal.ref}
+          ref={signOffRef}
           className="mt-28 sm:mt-40 pt-16 sm:pt-20 border-t flex flex-col items-center text-center"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <motion.div
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
-            animate={
-              prefersReducedMotion || signOffReveal.entered
-                ? { opacity: 1, y: 0 }
-                : { opacity: 0, y: 18 }
-            }
-            transition={{
-              duration: prefersReducedMotion ? 0 : 0.75,
-              ease: EASE_OUT_EXPO,
-            }}
+          <div
             className="flex flex-col items-center"
+            style={{
+              opacity: showSignOff ? 1 : 0,
+              transform: showSignOff
+                ? 'translate3d(0, 0, 0)'
+                : 'translate3d(0, 18px, 0)',
+              transition: prefersReducedMotion
+                ? undefined
+                : 'opacity 750ms cubic-bezier(0.16, 1, 0.3, 1), transform 750ms cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
           >
-            {/* Short disclaimer sentence in serif */}
             <p
               className="m-0 font-body italic"
               style={{
@@ -314,7 +275,6 @@ export function ClosingSection({
               {signOff.disclaimer}
             </p>
 
-            {/* Signature ("— initials") */}
             <p
               className="mt-8 mb-0 font-display italic"
               style={{
@@ -335,7 +295,6 @@ export function ClosingSection({
               )}
             </p>
 
-            {/* "last touched" + contact email link */}
             <div
               className="mt-8 flex flex-col items-center gap-2.5 font-mono tracking-[var(--tracking-mono)]"
               style={{
@@ -367,7 +326,7 @@ export function ClosingSection({
                 {signOff.email}
               </HoverLink>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

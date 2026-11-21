@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { usePrefersReducedMotion } from '../lib/useViewportActivity';
 
 export interface TypedLineProps {
   /** The sentence to type out */
@@ -29,7 +29,7 @@ export function TypedLine({
   onComplete,
   className = '',
 }: TypedLineProps) {
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [visibleCount, setVisibleCount] = useState<number>(() =>
     prefersReducedMotion ? text.length : 0,
   );
@@ -115,17 +115,15 @@ export function TypedLine({
 
   const showPrefix = prefersReducedMotion || phase !== 'idle';
   const showCursor =
-    !prefersReducedMotion &&
-    (phase === 'waiting' ||
-      phase === 'typing' ||
-      (phase === 'done' && keepCursorOnComplete));
+    (phase === 'done' && keepCursorOnComplete) ||
+    (!prefersReducedMotion && (phase === 'waiting' || phase === 'typing'));
   const shouldBlinkCursor = phase === 'waiting' || phase === 'done';
 
   return (
     <div
       className={`grid font-mono ${className}`}
       style={{
-        fontSize: 'var(--text-meta)',
+        fontSize: 'var(--hero-blockquote-size, var(--text-meta))',
         lineHeight: 'var(--leading-mono)',
       }}
     >
@@ -161,6 +159,7 @@ export function TypedLine({
           {text.slice(0, visibleCount)}
           {showCursor && (
             <span
+              data-testid="typed-line-cursor"
               className={`inline-block align-[-0.14em] ml-[0.15ch] w-[0.55ch] h-[1.05em] ${
                 shouldBlinkCursor ? 'terminal-cursor-blink' : ''
               }`}

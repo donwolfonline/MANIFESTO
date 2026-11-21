@@ -1,14 +1,17 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type {
   ManifestoBodyBlock,
   ManifestoItem,
 } from '../data/manifestoItems';
 import { useLenis } from '../lib/lenis';
-import { EASE_OUT_EXPO } from '../lib/motion';
+import { getPreloadHandlers } from '../lib/routePreload';
+import { usePrefersReducedMotion } from '../lib/useViewportActivity';
 
 interface ReadingSectionProps {
   items: ManifestoItem[];
+  onOpenNote?: (slug: string) => void;
+  /** Distraction-free reading mode: hides side chrome and centers 62ch column */
+  readingMode?: boolean;
 }
 
 /**
@@ -50,15 +53,13 @@ function formatNumber(n: number): string {
 }
 
 /**
- * Thin 1px rule separating items that draws smoothly from left to right
+ * Thin 1px rule separating items that draws smoothly from left to right via CSS
  * when it enters the viewport via IntersectionObserver.
  */
 function DrawingRule() {
   const ruleRef = useRef<HTMLDivElement | null>(null);
-  const prefersReducedMotion = useReducedMotion();
-  const [drawn, setDrawn] = useState<boolean>(() =>
-    Boolean(prefersReducedMotion),
-  );
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [drawn, setDrawn] = useState<boolean>(prefersReducedMotion);
 
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -90,14 +91,14 @@ function DrawingRule() {
       className="my-16 sm:my-24 w-full"
       style={{ maxWidth: 'var(--measure)' }}
     >
-      <motion.div
+      <div
         className="h-px w-full origin-left"
-        style={{ backgroundColor: 'var(--color-border-strong)' }}
-        initial={prefersReducedMotion ? false : { scaleX: 0 }}
-        animate={{ scaleX: drawn ? 1 : 0 }}
-        transition={{
-          duration: prefersReducedMotion ? 0 : 0.85,
-          ease: EASE_OUT_EXPO,
+        style={{
+          backgroundColor: 'var(--color-border-strong)',
+          transform: drawn ? 'scaleX(1)' : 'scaleX(0)',
+          transition: prefersReducedMotion
+            ? undefined
+            : 'transform 850ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       />
     </div>
@@ -110,19 +111,13 @@ interface TypedHeadingProps {
   start: boolean;
 }
 
-/**
- * Renders "### ### 1. title" style mono heading with dimmed hash marks;
- * types in on scroll entry and skips typing under prefers-reduced-motion.
- */
 function TypedItemHeading({ number, title, start }: TypedHeadingProps) {
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const fullTitle = `${number}. ${title}`;
   const [visibleCount, setVisibleCount] = useState<number>(() =>
     prefersReducedMotion ? fullTitle.length : 0,
   );
-  const [done, setDone] = useState<boolean>(() =>
-    Boolean(prefersReducedMotion),
-  );
+  const [done, setDone] = useState<boolean>(prefersReducedMotion);
   const completedRef = useRef(false);
 
   useEffect(() => {
@@ -168,19 +163,16 @@ function TypedItemHeading({ number, title, start }: TypedHeadingProps) {
         lineHeight: 1.4,
       }}
     >
-      {/* Screen-reader clean full heading */}
       <span className="sr-only">
         {number}. {title}
       </span>
 
       <span className="grid" aria-hidden="true">
-        {/* Invisible sizing layer prevents layout shift while typing */}
         <span className="col-start-1 row-start-1 invisible select-none pointer-events-none">
           <span className="mr-2.5">###</span>
           <span>{fullTitle}</span>
         </span>
 
-        {/* Visible dimmed hash marks + typing title */}
         <span className="col-start-1 row-start-1">
           <span
             className="mr-2.5 select-none"
@@ -214,45 +206,38 @@ function BodyBlock({
   revealed: boolean;
   prefersReducedMotion: boolean;
 }) {
-  const transition = {
-    duration: prefersReducedMotion ? 0 : 0.65,
-    delay: prefersReducedMotion ? 0 : 0.14 + index * 0.08, // 80ms stagger
-    ease: EASE_OUT_EXPO,
-  };
-
-  const initial = prefersReducedMotion ? false : { opacity: 0, y: 18 };
-  const animate =
-    prefersReducedMotion || revealed
-      ? { opacity: 1, y: 0 }
-      : { opacity: 0, y: 18 };
+  const show = prefersReducedMotion || revealed;
+  const delayMs = 140 + index * 80;
+  const animStyle = prefersReducedMotion
+    ? undefined
+    : {
+        opacity: show ? 1 : 0,
+        transform: show ? 'translate3d(0, 0, 0)' : 'translate3d(0, 18px, 0)',
+        transition: `opacity 650ms cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms, transform 650ms cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms`,
+      };
 
   if (block.type === 'paragraph') {
     return (
-      <motion.p
-        initial={initial}
-        animate={animate}
-        transition={transition}
+      <p
         className="m-0 font-body"
         style={{
           maxWidth: 'var(--measure)',
           fontSize: 'var(--text-body)',
           lineHeight: 'var(--leading-body)',
           color: 'var(--color-text-secondary)',
+          ...animStyle,
         }}
       >
         {renderInlineText(block.text)}
-      </motion.p>
+      </p>
     );
   }
 
   if (block.type === 'bullets') {
     return (
-      <motion.ul
-        initial={initial}
-        animate={animate}
-        transition={transition}
+      <ul
         className="m-0 p-0 list-none space-y-3"
-        style={{ maxWidth: 'var(--measure)' }}
+        style={{ maxWidth: 'var(--measure)', ...animStyle }}
       >
         {block.items.map((entry, bulletIdx) => (
           <li
@@ -274,16 +259,12 @@ function BodyBlock({
             <span>{renderInlineText(entry)}</span>
           </li>
         ))}
-      </motion.ul>
+      </ul>
     );
   }
 
-  // Short line-broken list (no bullets)
   return (
-    <motion.div
-      initial={initial}
-      animate={animate}
-      transition={transition}
+    <div
       className="space-y-1.5 pl-4 border-l font-body"
       style={{
         maxWidth: 'var(--measure)',
@@ -291,6 +272,7 @@ function BodyBlock({
         fontSize: 'var(--text-body)',
         lineHeight: 1.65,
         color: 'var(--color-text-secondary)',
+        ...animStyle,
       }}
     >
       {block.lines.map((line, lineIdx) => (
@@ -298,18 +280,23 @@ function BodyBlock({
           {renderInlineText(line)}
         </p>
       ))}
-    </motion.div>
+    </div>
   );
 }
 
 interface ReadingItemCardProps {
   item: ManifestoItem;
   registerRef: (number: number, node: HTMLElement | null) => void;
+  onOpenNote?: (slug: string) => void;
 }
 
-function ReadingItemCard({ item, registerRef }: ReadingItemCardProps) {
+function ReadingItemCard({
+  item,
+  registerRef,
+  onOpenNote,
+}: ReadingItemCardProps) {
   const articleRef = useRef<HTMLElement | null>(null);
-  const prefersReducedMotion = Boolean(useReducedMotion());
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [revealed, setRevealed] = useState<boolean>(prefersReducedMotion);
 
   useEffect(() => {
@@ -345,7 +332,6 @@ function ReadingItemCard({ item, registerRef }: ReadingItemCardProps) {
       data-item-number={item.number}
       className="scroll-mt-28 sm:scroll-mt-32 [contain:layout_style]"
     >
-      {/* Mobile-only outlined number placed directly above the title */}
       <div
         aria-hidden="true"
         className="lg:hidden mb-3 font-display font-normal tabular-nums leading-none select-none outlined-number"
@@ -371,27 +357,76 @@ function ReadingItemCard({ item, registerRef }: ReadingItemCardProps) {
           />
         ))}
       </div>
+
+      <div
+        className="mt-7 flex flex-wrap items-center justify-between gap-3 font-mono"
+        style={{
+          maxWidth: 'var(--measure)',
+          fontSize: 'var(--text-micro)',
+          color: 'var(--color-text-muted)',
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
+          {item.draft && (
+            <span
+              className="px-1.5 py-0.5 border uppercase tracking-[var(--tracking-micro)]"
+              style={{
+                borderColor: 'var(--color-status-warn)',
+                color: 'var(--color-status-warn)',
+                backgroundColor: 'rgba(233, 168, 59, 0.12)',
+                borderRadius: 'var(--radius-xs)',
+              }}
+            >
+              draft
+            </span>
+          )}
+          <span>{item.readingTimeMinutes} min read</span>
+          <span aria-hidden="true">·</span>
+          <span>{item.tags.slice(0, 3).map((t) => `#${t}`).join(' ')}</span>
+        </div>
+
+        {onOpenNote && (
+          <a
+            href={`/notes/principles/${item.slug}`}
+            {...getPreloadHandlers('notes')}
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenNote(item.slug);
+            }}
+            className="link-draw uppercase tracking-[var(--tracking-micro)] transition-colors hover:text-[var(--color-accent)]"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            {item.toc.length >= 2 ? 'read full note + toc →' : 'open note →'}
+          </a>
+        )}
+      </div>
     </article>
   );
 }
 
-export function ReadingSection({ items }: ReadingSectionProps) {
-  const prefersReducedMotion = Boolean(useReducedMotion());
+export function ReadingSection({
+  items,
+  onOpenNote,
+  readingMode = false,
+}: ReadingSectionProps) {
   const { scrollTo } = useLenis();
   const [activeNumber, setActiveNumber] = useState<number>(
     items[0]?.number ?? 1,
   );
   const itemRefs = useRef<Map<number, HTMLElement>>(new Map());
 
-  const registerRef = useCallback((number: number, node: HTMLElement | null) => {
-    if (node) {
-      itemRefs.current.set(number, node);
-    } else {
-      itemRefs.current.delete(number);
-    }
-  }, []);
+  const registerRef = useCallback(
+    (number: number, node: HTMLElement | null) => {
+      if (node) {
+        itemRefs.current.set(number, node);
+      } else {
+        itemRefs.current.delete(number);
+      }
+    },
+    [],
+  );
 
-  // Pure asynchronous IntersectionObserver active-item tracking (zero per-frame scroll layout thrashing)
+  // Pure asynchronous IntersectionObserver active-item tracking (zero per-frame scroll work)
   useEffect(() => {
     const nodes = Array.from(itemRefs.current.values());
     if (nodes.length === 0) return;
@@ -448,100 +483,91 @@ export function ReadingSection({ items }: ReadingSectionProps) {
   return (
     <section
       id="read"
+      tabIndex={-1}
       aria-label="Manifesto reading section"
-      className="relative scroll-mt-20 pt-20 sm:pt-32 pb-16 sm:pb-24"
+      className="relative scroll-mt-20 pt-20 sm:pt-32 pb-16 sm:pb-24 focus:outline-none"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <div className="editorial-shell">
-        {/* Mobile / tablet compact 1–10 dot navigation bar */}
-        <nav
-          aria-label="Manifesto sections (mobile)"
-          className="lg:hidden sticky top-[var(--header-height)] -mx-[var(--gutter)] px-[var(--gutter)] py-3 mb-12 flex items-center justify-between gap-2 sm:gap-4 border-y"
-          style={{
-            zIndex: 'var(--z-sticky)',
-            backgroundColor: 'var(--color-bg-glass)',
-            borderColor: 'var(--color-border)',
-          }}
-        >
-          <span
-            className="shrink-0 font-mono tabular-nums uppercase tracking-[var(--tracking-micro)]"
+        {!readingMode && (
+          <nav
+            aria-label="Manifesto sections (mobile)"
+            className="lg:hidden sticky top-[var(--header-height)] -mx-[var(--gutter)] px-[var(--gutter)] py-3 mb-12 flex items-center justify-between gap-2 sm:gap-4 border-y"
             style={{
-              fontSize: 'var(--text-micro)',
-              color: 'var(--color-text-muted)',
+              zIndex: 'var(--z-sticky)',
+              backgroundColor: 'var(--color-bg-glass)',
+              borderColor: 'var(--color-border)',
             }}
           >
-            {formatNumber(activeNumber)} / {formatNumber(items.length)}
-          </span>
+            <span
+              className="shrink-0 font-mono tabular-nums uppercase tracking-[var(--tracking-micro)]"
+              style={{
+                fontSize: 'var(--text-micro)',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              {formatNumber(activeNumber)} / {formatNumber(items.length)}
+            </span>
 
-          <ol className="flex items-center gap-1 sm:gap-2 list-none p-0 m-0">
-            {items.map((item) => {
-              const isActive = item.number === activeNumber;
-              return (
-                <li key={item.number}>
-                  <button
-                    type="button"
-                    onClick={() => handleJumpToItem(item.number)}
-                    aria-label={`Jump to ${item.number}. ${item.title}`}
-                    aria-current={isActive ? 'location' : undefined}
-                    className="p-1 sm:p-1.5 flex items-center justify-center cursor-pointer"
-                  >
-                    <span
-                      className="block rounded-full transition-all"
-                      style={{
-                        width: isActive ? '8px' : '5px',
-                        height: isActive ? '8px' : '5px',
-                        backgroundColor: isActive
-                          ? 'var(--color-accent)'
-                          : 'var(--color-border-strong)',
-                        boxShadow: isActive
-                          ? '0 0 0 3px var(--color-accent-soft)'
-                          : 'none',
-                      }}
-                    />
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+            <ol className="flex items-center gap-1 sm:gap-2 list-none p-0 m-0">
+              {items.map((item) => {
+                const isActive = item.number === activeNumber;
+                return (
+                  <li key={item.number}>
+                    <button
+                      type="button"
+                      onClick={() => handleJumpToItem(item.number)}
+                      aria-label={`Jump to ${item.number}. ${item.title}`}
+                      aria-current={isActive ? 'location' : undefined}
+                      className="p-1 sm:p-1.5 flex items-center justify-center cursor-pointer"
+                    >
+                      <span
+                        className="block rounded-full transition-all"
+                        style={{
+                          width: isActive ? '8px' : '5px',
+                          height: isActive ? '8px' : '5px',
+                          backgroundColor: isActive
+                            ? 'var(--color-accent)'
+                            : 'var(--color-border-strong)',
+                          boxShadow: isActive
+                            ? '0 0 0 3px var(--color-accent-soft)'
+                            : 'none',
+                        }}
+                      />
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
 
-        {/* Desktop two-column layout + sticky right-edge 1–10 dot mini ToC */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-10">
+        <div
+          className={
+            readingMode
+              ? 'max-w-[62ch] mx-auto'
+              : 'grid grid-cols-1 lg:grid-cols-12 lg:gap-10'
+          }
+        >
           {/* Left Sticky Column: Huge Outlined Active Item Number */}
-          <div className="hidden lg:block lg:col-span-4">
+          {!readingMode && (
+            <div className="hidden lg:block lg:col-span-4">
             <div
               className="sticky top-32 pt-2 select-none"
               style={{ zIndex: 'var(--z-sticky)' }}
               aria-hidden="true"
             >
               <div className="grid items-start">
-                <AnimatePresence mode="sync" initial={false}>
-                  <motion.span
-                    key={activeNumber}
-                    className="col-start-1 row-start-1 font-display font-normal tabular-nums leading-[0.82] outlined-number"
-                    style={{
-                      fontSize: 'clamp(7.5rem, 15.5vw, 15rem)',
-                      letterSpacing: '-0.04em',
-                    }}
-                    initial={
-                      prefersReducedMotion
-                        ? false
-                        : { opacity: 0, y: 12 }
-                    }
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={
-                      prefersReducedMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, y: -12 }
-                    }
-                    transition={{
-                      duration: prefersReducedMotion ? 0 : 0.38,
-                      ease: EASE_OUT_EXPO,
-                    }}
-                  >
-                    {formatNumber(activeNumber)}
-                  </motion.span>
-                </AnimatePresence>
+                <span
+                  key={activeNumber}
+                  className="col-start-1 row-start-1 font-display font-normal tabular-nums leading-[0.82] outlined-number panel-enter"
+                  style={{
+                    fontSize: 'clamp(7.5rem, 15.5vw, 15rem)',
+                    letterSpacing: '-0.04em',
+                  }}
+                >
+                  {formatNumber(activeNumber)}
+                </span>
               </div>
 
               <div
@@ -560,20 +586,26 @@ export function ReadingSection({ items }: ReadingSectionProps) {
                 </span>
               </div>
             </div>
-          </div>
+            </div>
+          )}
 
-          {/* Right Column: 10 Manifesto Items */}
-          <div className="lg:col-span-7">
+          {/* Right Column: Manifesto Items */}
+          <div className={readingMode ? 'w-full' : 'lg:col-span-7'}>
             {items.map((item, idx) => (
               <Fragment key={item.number}>
-                <ReadingItemCard item={item} registerRef={registerRef} />
+                <ReadingItemCard
+                  item={item}
+                  registerRef={registerRef}
+                  onOpenNote={onOpenNote}
+                />
                 {idx < items.length - 1 && <DrawingRule />}
               </Fragment>
             ))}
           </div>
 
-          {/* Right Edge: Sticky Mini Table-of-Contents (1–10 Dots) */}
-          <div className="hidden lg:flex lg:col-span-1 justify-end">
+          {/* Right Edge: Sticky Mini Table-of-Contents */}
+          {!readingMode && (
+            <div className="hidden lg:flex lg:col-span-1 justify-end">
             <nav
               aria-label="Manifesto sections"
               className="sticky top-[34dvh] h-fit py-2"
@@ -591,7 +623,6 @@ export function ReadingSection({ items }: ReadingSectionProps) {
                         aria-current={isActive ? 'location' : undefined}
                         className="group relative flex items-center justify-end gap-2.5 py-1.5 pl-4 pr-1 cursor-pointer"
                       >
-                        {/* Subtle mono tooltip on hover / focus */}
                         <span
                           className="pointer-events-none absolute right-6 whitespace-nowrap px-2 py-0.5 font-mono opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-[opacity,transform]"
                           style={{
@@ -635,6 +666,7 @@ export function ReadingSection({ items }: ReadingSectionProps) {
               </ol>
             </nav>
           </div>
+          )}
         </div>
       </div>
     </section>

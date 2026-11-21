@@ -1,0 +1,49 @@
+---
+principleNumber: 7
+hash: e704c18
+prefix: fix
+title: close the laptop when the same error mocks you twice
+slug: close-the-laptop-when-the-same-error-mocks-you-twice
+author: working-engineer
+date: 2026-08-21
+relativeDate: 3 months ago
+filePath: habits/rest.md
+tags:
+  - fix
+  - git-history
+summary: "fix: close the laptop when the same error mocks you twice"
+draft: false
+hunks:
+  - removed:
+      - Keep hotfixing a stubborn race condition at 7:45pm until one bug becomes two weirder bugs.
+    added:
+      - Staring at a stubborn race condition at 7:45pm rarely produces a breakthrough; it produces a
+        second bug disguised as a workaround.
+    blame:
+      hash: e704c18
+      author: tired-me
+      when: 2026-08-21 19:46
+      note: wrote a 40-line retry hack for what turned out to be a missing await
+  - removed:
+      - Stay online past dinner to prove dedication to a broken test.
+    added:
+      - Shut the lid, eat dinner, and get real sleep. Half the gnarliest defects of my career fell
+        apart in ninety seconds the next morning.
+    blame:
+      hash: e704c18
+      author: rested-me
+      when: 2026-08-22 09:04
+      note: spotted the typo before finishing the first sip of coffee
+---
+
+## Hunk 1
+
+Staring at a stubborn race condition at 7:45pm rarely produces a breakthrough; it produces a second bug disguised as a workaround.
+
+> Blame (tired-me, 2026-08-21 19:46): wrote a 40-line retry hack for what turned out to be a missing await
+
+## Hunk 2
+
+Shut the lid, eat dinner, and get real sleep. Half the gnarliest defects of my career fell apart in ninety seconds the next morning.
+
+> Blame (rested-me, 2026-08-22 09:04): spotted the typo before finishing the first sip of coffee

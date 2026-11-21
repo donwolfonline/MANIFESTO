@@ -1,112 +1,123 @@
 import {
-  useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type MouseEvent,
 } from 'react';
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-} from 'framer-motion';
 import { useLenis } from '../lib/lenis';
 import type { ManifestoMeta } from '../lib/markdown';
-import {
-  EASE_OUT_EXPO,
-  LETTER_STAGGER,
-  MOTION_DURATION,
-} from '../lib/motion';
-import { TypedLine } from './TypedLine';
+import { usePrefersReducedMotion } from '../lib/useViewportActivity';
+import { resolveSiteAuthor, SITE_CONFIG } from '../site.config';
 import { HoverLink } from './HoverLink';
+import { TypedLine } from './TypedLine';
 
 interface HeroProps {
   meta: ManifestoMeta;
-  /** Optional override for the giant "HUMAN.md"-style title */
+  /** Optional override for the giant display title */
   title?: string;
   /** Optional override for the 3 blockquote subtitle lines */
   subtitles?: [string, string, string] | string[];
-  /** Defers load choreography until the page preloader curtain lifts */
+  /** Retained for prop compatibility; Hero paints immediately for fast LCP */
   ready?: boolean;
 }
 
-interface TitleGlyph {
-  char: string;
-  index: number;
-  isDot: boolean;
-  isExtension: boolean;
-}
+const LETTER_STAGGER_MS = 50;
+const SCROLL_CUE_HIDE_THRESHOLD_PX = 24;
+const TITLE_PARALLAX_FACTOR = 0.04;
 
-export function Hero({
-  meta,
-  title,
-  subtitles,
-  ready = true,
-}: HeroProps) {
+export function Hero({ meta, title, subtitles, ready = true }: HeroProps) {
   const heroRef = useRef<HTMLElement | null>(null);
-  const prefersReducedMotion = useReducedMotion();
+  const titleParallaxRef = useRef<HTMLDivElement | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const { scrollTo } = useLenis();
 
-  const displayTitle = title ?? meta.title;
+  const displayTitle = title ?? (meta.title || SITE_CONFIG.title);
+  const resolvedAuthor = resolveSiteAuthor(meta.author);
+  const resolvedDate = meta.date || SITE_CONFIG.date;
+
   const lines = useMemo(
-    () => (subtitles && subtitles.length > 0 ? subtitles : meta.subtitles),
+    () =>
+      subtitles && subtitles.length > 0
+        ? subtitles
+        : meta.subtitles?.length
+          ? meta.subtitles
+          : SITE_CONFIG.subtitles,
     [subtitles, meta.subtitles],
   );
 
-  // Group characters by word so multi-word titles wrap cleanly while preserving
-  // a continuous 60ms letter-by-letter stagger index across the whole title.
-  const { wordGroups, totalChars } = useMemo(() => {
-    const extIndex = displayTitle.lastIndexOf('.');
-    const hasExtension = extIndex > 0 && extIndex < displayTitle.length - 1;
+  // Split extension ("WORKING_COPY" + "." + "md") and mobile line-break ("WORKING_" / "COPY")
+  const { line1Chars, line2StemChars, extChars, totalLetters, dotDelayMs } =
+    useMemo(() => {
+      const extIndex = displayTitle.lastIndexOf('.');
+      const hasExt = extIndex > 0 && extIndex < displayTitle.length - 1;
+      const stem = (
+        hasExt ? displayTitle.slice(0, extIndex) : displayTitle
+      ).toUpperCase();
+      const ext = hasExt ? displayTitle.slice(extIndex + 1) : '';
 
-    const groups: TitleGlyph[][] = [];
-    let currentWord: TitleGlyph[] = [];
-    let runningIndex = 0;
+      const underscoreIdx = stem.indexOf('_');
+      const firstPart =
+        underscoreIdx >= 0 ? stem.slice(0, underscoreIdx + 1) : stem;
+      const secondPart =
+        underscoreIdx >= 0 ? stem.slice(underscoreIdx + 1) : '';
 
-    for (const char of Array.from(displayTitle)) {
-      const glyph: TitleGlyph = {
-        char,
-        index: runningIndex,
-        isDot: hasExtension && runningIndex === extIndex,
-        isExtension: hasExtension && runningIndex > extIndex,
+      const l1 = Array.from(firstPart);
+      const l2 = Array.from(secondPart);
+      const extArr = Array.from(ext);
+      const lettersCount = l1.length + l2.length + extArr.length;
+
+      return {
+        line1Chars: l1,
+        line2StemChars: l2,
+        extChars: extArr,
+        totalLetters: lettersCount,
+        // The orange dot pops in last after all letters have staggered in (50ms each)
+        dotDelayMs: lettersCount * LETTER_STAGGER_MS,
       };
-      runningIndex += 1;
+    }, [displayTitle]);
 
-      if (char === ' ') {
-        if (currentWord.length > 0) {
-          groups.push(currentWord);
-          currentWord = [];
-        }
-        groups.push([glyph]);
-      } else {
-        currentWord.push(glyph);
-      }
-    }
-
-    if (currentWord.length > 0) {
-      groups.push(currentWord);
-    }
-
-    return { wordGroups: groups, totalChars: runningIndex };
-  }, [displayTitle]);
-
-  const [titleDone, setTitleDone] = useState<boolean>(
-    () => Boolean(prefersReducedMotion),
-  );
   const [activeLine, setActiveLine] = useState<number>(0);
+  const [hasScrolled, setHasScrolled] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? window.scrollY > SCROLL_CUE_HIDE_THRESHOLD_PX
+      : false,
+  );
 
-  const handleTitleComplete = useCallback(() => {
-    setTitleDone(true);
-  }, []);
+  // Subtle 4% title parallax (moves 4% slower than scroll) + hide scroll cue once user scrolls
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
+    const updateOnScroll = () => {
+      const rawScrollY = Math.max(0, window.scrollY || 0);
+      const scrolledPastTop = rawScrollY > SCROLL_CUE_HIDE_THRESHOLD_PX;
+      setHasScrolled((prev) =>
+        prev === scrolledPastTop ? prev : scrolledPastTop,
+      );
 
-  const parallaxY = useTransform(scrollYProgress, [0, 1], [0, 48]);
-  const fadeOut = useTransform(scrollYProgress, [0, 0.85], [1, 0.25]);
+      const titleNode = titleParallaxRef.current;
+      if (!titleNode) return;
+
+      if (prefersReducedMotion) {
+        titleNode.style.transform = 'translate3d(0, 0px, 0)';
+        titleNode.setAttribute('data-parallax-y', '0.00');
+        return;
+      }
+
+      const offsetY = rawScrollY * TITLE_PARALLAX_FACTOR;
+      titleNode.style.transform = `translate3d(0, ${offsetY.toFixed(2)}px, 0)`;
+      titleNode.setAttribute('data-parallax-y', offsetY.toFixed(2));
+    };
+
+    updateOnScroll();
+    window.addEventListener('scroll', updateOnScroll, { passive: true });
+    window.addEventListener('resize', updateOnScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', updateOnScroll);
+      window.removeEventListener('resize', updateOnScroll);
+    };
+  }, [prefersReducedMotion]);
 
   const handleJumpToRead = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -118,51 +129,72 @@ export function Hero({
     scrollTo('#statements', { offset: 0 });
   };
 
-  const typingReady = Boolean(prefersReducedMotion) || (ready && titleDone);
+  const typingReady = prefersReducedMotion || ready;
+
+  const renderMaskedChar = (
+    char: string,
+    charIndex: number,
+    extraClassName = '',
+  ) => {
+    const delayMs = charIndex * LETTER_STAGGER_MS;
+    return (
+      <span
+        key={`char-${charIndex}-${char}`}
+        className="hero-char-mask"
+        data-char-index={charIndex}
+        data-stagger-delay={`${delayMs}ms`}
+      >
+        <span
+          className={`hero-char ${
+            prefersReducedMotion ? '' : 'hero-char-reveal'
+          } ${extraClassName}`.trim()}
+          style={
+            prefersReducedMotion
+              ? undefined
+              : { animationDelay: `${delayMs}ms` }
+          }
+        >
+          {char}
+        </span>
+      </span>
+    );
+  };
 
   return (
     <section
       id="top"
       ref={heroRef}
       aria-label="Manifesto introduction"
-      className="relative min-h-dvh flex flex-col justify-between pt-[calc(var(--header-height)+1.25rem)] pb-7 sm:pb-9"
+      className="hero-section relative min-h-svh md:min-h-dvh w-full max-w-full overflow-x-clip flex flex-col justify-between pt-[calc(var(--header-height)+1.25rem)] pb-7 sm:pb-9"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
-      {/* Top Bar: Author · Date (left) & Skip to the text -> #read (right) */}
+      {/* Top Meta Row: Author · Date (left) & Skip to the text -> #read (right); stacks on mobile */}
       <div className="editorial-shell">
-        <motion.div
-          initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}
-          animate={
-            prefersReducedMotion || ready
-              ? { opacity: 1, y: 0 }
-              : { opacity: 0, y: -8 }
-          }
-          transition={{
-            duration: MOTION_DURATION.base,
-            ease: EASE_OUT_EXPO,
-          }}
-          className="flex flex-wrap items-center justify-between gap-4 font-mono tracking-[var(--tracking-mono)]"
+        <div
+          data-testid="hero-meta-row"
+          className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 font-mono tracking-[var(--tracking-mono)]"
           style={{
             fontSize: 'var(--text-micro)',
             color: 'var(--color-text-muted)',
           }}
         >
-          <p className="m-0 uppercase flex items-center gap-2.5">
-            <span style={{ color: 'var(--color-text)' }}>{meta.author}</span>
-            <span
-              aria-hidden="true"
-              style={{ color: 'var(--color-accent)' }}
-            >
+          <p
+            data-testid="hero-author-date"
+            className="m-0 uppercase flex items-center gap-2.5"
+          >
+            <span style={{ color: 'var(--color-text)' }}>{resolvedAuthor}</span>
+            <span aria-hidden="true" style={{ color: 'var(--color-accent)' }}>
               ·
             </span>
-            <span>{meta.date}</span>
+            <span>{resolvedDate}</span>
           </p>
 
           <HoverLink
             href="#read"
+            data-testid="hero-skip-link"
             restingRule
             onClick={handleJumpToRead}
-            className="uppercase transition-colors hover:text-[var(--color-text)]"
+            className="hero-skip-link uppercase transition-colors hover:text-[var(--color-text)]"
             style={{
               color: 'var(--color-text-secondary)',
               transitionDuration: 'var(--duration-fast)',
@@ -170,100 +202,101 @@ export function Hero({
           >
             Skip to the text
           </HoverLink>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Center: Giant HUMAN.md-style Title + 3 Terminal Blockquote Subtitles */}
-      <motion.div
-        className="editorial-shell my-auto py-12 sm:py-16 flex flex-col items-center text-center"
-        style={
-          prefersReducedMotion
-            ? undefined
-            : { y: parallaxY, opacity: fadeOut }
-        }
-      >
-        <h1
-          aria-label={displayTitle}
-          className="font-display font-normal m-0 select-text"
-          style={{
-            fontSize: 'var(--text-display)',
-            lineHeight: 'var(--leading-display)',
-            letterSpacing: 'var(--tracking-display)',
-            color: 'var(--color-text)',
-          }}
+      {/* Center: Display Title + Blinking Underscore Cursor + 3 Sequential Blockquote Lines */}
+      <div className="editorial-shell my-auto py-10 sm:py-16 flex flex-col items-center text-center max-w-full overflow-x-clip">
+        <div
+          ref={titleParallaxRef}
+          data-testid="hero-title-parallax"
+          data-parallax-factor={String(TITLE_PARALLAX_FACTOR)}
+          data-parallax-y="0.00"
+          className="w-full max-w-full flex flex-col items-center will-change-transform"
         >
-          {wordGroups.map((group, groupIndex) => {
-            const isSpace = group.length === 1 && group[0].char === ' ';
-            if (isSpace) {
-              return (
-                <span key={`space-${groupIndex}`} aria-hidden="true">
-                  {' '}
-                </span>
-              );
-            }
-
-            return (
+          <h1
+            aria-label={displayTitle}
+            className="hero-display-title font-display font-normal m-0 select-text"
+            style={{
+              color: 'var(--color-text)',
+            }}
+          >
+            <span
+              data-testid="hero-title-line-1"
+              className="hero-title-line uppercase"
+            >
+              {line1Chars.map((ch, idx) => renderMaskedChar(ch, idx))}
+            </span>
+            {(line2StemChars.length > 0 || extChars.length > 0) && (
               <span
-                key={`word-${groupIndex}`}
-                aria-hidden="true"
-                className="inline-block whitespace-nowrap"
+                data-testid="hero-title-line-2"
+                className="hero-title-line"
               >
-                {group.map(({ char, index, isDot, isExtension }) => {
-                  const isLastChar = index === totalChars - 1;
-
-                  return (
+                {line2StemChars.length > 0 && (
+                  <span className="uppercase">
+                    {line2StemChars.map((ch, idx) =>
+                      renderMaskedChar(ch, line1Chars.length + idx),
+                    )}
+                  </span>
+                )}
+                {extChars.length > 0 && (
+                  <>
                     <span
-                      key={`${index}-${char}`}
-                      className="inline-block overflow-hidden align-bottom py-[0.08em] -my-[0.08em] px-[0.02em] -mx-[0.02em]"
+                      data-testid="hero-title-dot"
+                      data-pop-delay={`${dotDelayMs}ms`}
+                      data-total-letters={String(totalLetters)}
+                      className={`inline-block ${
+                        prefersReducedMotion ? '' : 'hero-dot-pop'
+                      }`.trim()}
+                      style={{
+                        color: 'var(--color-accent)',
+                        animationDelay: prefersReducedMotion
+                          ? undefined
+                          : `${dotDelayMs}ms`,
+                      }}
                     >
-                      <motion.span
-                        className={`inline-block ${isExtension ? 'italic' : ''}`}
-                        style={{
-                          color: isDot
-                            ? 'var(--color-accent)'
-                            : isExtension
-                              ? 'var(--color-text-secondary)'
-                              : 'var(--color-text)',
-                        }}
-                        initial={
-                          prefersReducedMotion
-                            ? false
-                            : { y: '112%', opacity: 0 }
-                        }
-                        animate={
-                          prefersReducedMotion || ready
-                            ? { y: '0%', opacity: 1 }
-                            : { y: '112%', opacity: 0 }
-                        }
-                        transition={{
-                          duration: MOTION_DURATION.slow,
-                          delay:
-                            prefersReducedMotion || !ready
-                              ? 0
-                              : 0.08 + index * LETTER_STAGGER,
-                          ease: EASE_OUT_EXPO,
-                        }}
-                        onAnimationComplete={
-                          isLastChar
-                            ? () => {
-                                if (ready) handleTitleComplete();
-                              }
-                            : undefined
-                        }
-                      >
-                        {char}
-                      </motion.span>
+                      .
                     </span>
-                  );
-                })}
+                    <span
+                      data-testid="hero-title-ext"
+                      className="italic font-light lowercase"
+                      style={{
+                        color: 'var(--color-text-secondary)',
+                        fontWeight: 300,
+                      }}
+                    >
+                      {extChars.map((ch, idx) =>
+                        renderMaskedChar(
+                          ch,
+                          line1Chars.length + line2StemChars.length + idx,
+                          'italic font-light',
+                        ),
+                      )}
+                    </span>
+                  </>
+                )}
               </span>
-            );
-          })}
-        </h1>
+            )}
+          </h1>
+
+          {/* Blinking underscore cursor below the title */}
+          <div
+            aria-hidden="true"
+            data-testid="hero-title-cursor"
+            className="mt-2 sm:mt-3 font-mono select-none leading-none"
+            style={{
+              fontSize: 'clamp(1.15rem, 2.2vw, 2rem)',
+              color: 'var(--color-accent)',
+            }}
+          >
+            <span className="inline-block terminal-cursor-blink">_</span>
+          </div>
+        </div>
 
         {/* Three Markdown blockquote lines typed sequentially like a terminal */}
         <div
-          className="mt-10 sm:mt-14 w-full max-w-[56ch] text-left space-y-2.5 sm:space-y-3"
+          data-testid="hero-blockquote-group"
+          className="hero-blockquote-list mt-8 sm:mt-12 w-full max-w-[56ch] text-left px-[20px] sm:px-0 space-y-2.5 sm:space-y-3"
           aria-label="Manifesto summary"
         >
           {lines.map((line, index) => {
@@ -274,8 +307,8 @@ export function Hero({
                 text={line}
                 prefix=">"
                 start={typingReady && activeLine >= index}
-                delayMs={index === 0 ? 140 : 220}
-                charIntervalMs={28}
+                delayMs={index === 0 ? 120 : 180}
+                charIntervalMs={24}
                 keepCursorOnComplete={isFinalLine}
                 onComplete={() =>
                   setActiveLine((prev) => Math.max(prev, index + 1))
@@ -284,15 +317,23 @@ export function Hero({
             );
           })}
         </div>
-      </motion.div>
+      </div>
 
-      {/* Bottom Center: "scroll" label + looping downward-animated thin line */}
+      {/* Bottom Center: "scroll" label + looping downward-animated thin 1px line, hidden once scrolled */}
       <div className="editorial-shell flex justify-center">
         <a
           href="#statements"
+          data-testid="hero-scroll-cue"
+          data-scrolled={hasScrolled ? 'true' : 'false'}
+          aria-hidden={hasScrolled ? 'true' : undefined}
+          tabIndex={hasScrolled ? -1 : 0}
           onClick={handleScrollDown}
           aria-label="Scroll down to manifesto statements"
-          className="group inline-flex flex-col items-center gap-3"
+          className={`group inline-flex flex-col items-center gap-3 transition-all duration-300 ${
+            hasScrolled
+              ? 'opacity-0 pointer-events-none translate-y-2'
+              : 'opacity-100 translate-y-0'
+          }`}
         >
           <span
             className="font-mono lowercase tracking-[var(--tracking-micro)] transition-colors"
@@ -306,6 +347,7 @@ export function Hero({
 
           <span
             aria-hidden="true"
+            data-testid="hero-scroll-line"
             className="relative block w-px h-12 sm:h-14 overflow-hidden"
             style={{ backgroundColor: 'var(--color-border)' }}
           >
@@ -315,19 +357,11 @@ export function Hero({
                 style={{ backgroundColor: 'var(--color-accent)' }}
               />
             ) : (
-              <motion.span
-                className="absolute inset-x-0 top-0 h-1/2 block"
+              <span
+                className="hero-scroll-drop absolute inset-x-0 top-0 h-1/2 block"
                 style={{
                   background:
                     'linear-gradient(to bottom, transparent, var(--color-accent) 45%, var(--color-text))',
-                }}
-                initial={{ y: '-100%' }}
-                animate={{ y: '220%' }}
-                transition={{
-                  duration: 1.75,
-                  repeat: Infinity,
-                  repeatDelay: 0.25,
-                  ease: EASE_OUT_EXPO,
                 }}
               />
             )}

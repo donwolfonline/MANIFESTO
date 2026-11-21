@@ -113,7 +113,7 @@ manifesto/
 
 ### Prerequisites
 
-- **Node.js** 20+ and **npm** 10+
+- **Node.js** 26 (see `.nvmrc`; CI uses the same version) and **npm** 10+
 
 ### Install & Run Locally
 
@@ -135,8 +135,63 @@ npm run dev -- --port 3001
 | `npm run dev` | Start the Vite dev server with HMR |
 | `npm run build` | Run strict TypeScript project build (`tsc -b`) and bundle `dist/` |
 | `npm run preview` | Preview the production `dist/` bundle locally |
-| `npm run typecheck` | Run `tsc --noEmit` without emitting build artifacts |
+| `npm run typecheck` | Type-check every project (`tsc -b`: app, `api/`, configs) |
+| `npm run lint` | ESLint with zero warnings allowed (`npm run lint:fix` to auto-fix) |
+| `npm run test:unit` | Vitest + React Testing Library |
+| `npm run budget` | Fail if any bundle exceeds its size budget (run after `build`) |
+| `npm run test:e2e` | Build, then Playwright E2E + axe-core on all browsers |
+| `npm run lhci` | Build, then Lighthouse CI against a local preview with the CI budgets |
+| `npm run test:all` | Everything CI runs on a pull request, in the same order |
 | `npm run optimize-assets` | Re-encode `src/assets/human-job.jpg` to WebP/MozJPEG and regenerate `public/og-image.png` (`1200×630`) |
+
+---
+
+## CI/CD Pipeline
+
+Four workflows in [`.github/workflows`](.github/workflows) plus Dependabot. The short version: nothing reaches production that didn't pass the same checks you saw on the pull request.
+
+```mermaid
+flowchart LR
+  PR["Pull request"] --> CI["ci.yml<br/>lint · types · unit · build · budget · E2E×4"]
+  PR --> PV["preview.yml<br/>Vercel preview → PR comment"]
+  PV --> LH["Lighthouse CI → PR comment"]
+  M["Merge to main"] --> CI2["ci.yml (reused)"] --> PROD["deploy-production.yml<br/>Vercel --prod → smoke test"]
+```
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| [`ci.yml`](.github/workflows/ci.yml) | Every PR (and called by production deploy) | **quality**: ESLint → `tsc -b` → Vitest. **build**: `vite build` (MDX/Zod validation) → bundle budget → uploads `dist/`. **e2e**: Playwright + axe-core on Chromium, Firefox, WebKit and Pixel 5 in parallel against that same `dist/`, plus the Core Web Vitals check on Chromium. **CI passed**: a single gate job to mark as *required* in branch protection. |
+| [`preview.yml`](.github/workflows/preview.yml) | PR opened / updated | Builds and deploys a Vercel preview, then posts (or updates) one sticky comment with the URL. Lighthouse CI then runs 3 mobile passes on `/`, `/wall` and `/privacy` and posts a second sticky comment with scores, LCP/CLS/TBT and any failed budgets. Full HTML reports are attached as the `lighthouse-reports` artifact. |
+| [`deploy-production.yml`](.github/workflows/deploy-production.yml) | Push to `main` | Re-runs `ci.yml` on the merge commit, deploys that exact commit with `vercel deploy --prebuilt --prod`, then smoke-tests the live site (home page, security headers, `/api/health`). Runs are serialized, never cancelled mid-deploy. |
+| [`daily-backup.yml`](.github/workflows/daily-backup.yml) · [`uptime-monitor.yml`](.github/workflows/uptime-monitor.yml) | Schedule | Daily Wall database snapshot; 15-minute uptime and header probe with alerting. |
+
+**Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens PRs every Monday at 06:00 UTC: one grouped PR for production minor/patch bumps, one for dev-dependency minor/patch bumps, one for GitHub Actions, and a separate PR for each major version so breaking changes get their own review. Those PRs run the full `ci.yml`; previews are skipped because GitHub doesn't give Dependabot or fork PRs access to deploy secrets.
+
+**Lighthouse budgets** live in [`lighthouserc.json`](lighthouserc.json): performance ≥ 90, accessibility ≥ 95, best practices ≥ 90 (all errors), SEO ≥ 90 (warning), CLS ≤ 0.05, Lighthouse simulated LCP ≤ 2.8 s (real-browser mobile LCP ≤ 2.0 s is enforced separately in `ci.yml` via `npm run perf:check`), and TBT ≤ 200 ms (warning, a lab stand-in for INP).
+
+### One-time setup
+
+1. **Link the Vercel project** locally: `npx vercel link`, then read `orgId` and `projectId` from `.vercel/project.json`. Create a token at vercel.com/account/tokens.
+2. **Repository secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Used by |
+   | --- | --- |
+   | `VERCEL_TOKEN` | preview + production |
+   | `VERCEL_ORG_ID` | preview + production |
+   | `VERCEL_PROJECT_ID` | preview + production |
+   | `VERCEL_AUTOMATION_BYPASS_SECRET` | Lighthouse, only if preview deployments are protected (Vercel → Project → Settings → Deployment Protection → *Protection Bypass for Automation*) |
+
+   Plus the existing backup/uptime secrets (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `UPTIME_ALERT_WEBHOOK_URL`) and the `SITE_URL` **variable**, which the production smoke test also uses.
+3. **Runtime env vars** (`SUPABASE_*`, `ADMIN_PASSWORD`, `RATE_LIMIT_SALT`, …) stay in the Vercel dashboard. `vercel pull` fetches them at build time, so they never live in GitHub.
+4. **Branch protection** on `main`: require pull requests and the **CI passed** and **Lighthouse CI** status checks.
+5. `vercel.json` sets `"git": { "deploymentEnabled": false }` so Vercel's own Git integration doesn't deploy alongside Actions. Remove it if you'd rather let Vercel build on its own.
+
+### When a check fails
+
+- **Lint / types / unit**: the log names the file and line. Run `npm run lint:fix`, `npm run typecheck` or `npm run test:watch` locally.
+- **Budget**: the report shows which chunk grew. `npm run analyze` opens the treemap.
+- **E2E**: download `playwright-report-<project>` from the run, unzip it, run `npx playwright show-report playwright-report` and open the trace. axe failures list the rule, the selector and a link to the fix.
+- **Lighthouse**: the PR comment lists each failed assertion; the artifact has the full report. `npm run lhci` reproduces it locally (lab numbers vary ±5 between machines, so look at trends, not single points).
 
 ---
 
@@ -147,7 +202,7 @@ npm run dev -- --port 3001
    ---
    filename: manifesto.md
    title: YOUR_TITLE.md
-   author: Your Name
+   author: Frederick Dineen
    date: Nov 2026
    subtitle_1: a working manifesto. notes-to-self, mostly.
    subtitle_2: written in plain text so it outlives every tool that renders it.
@@ -179,7 +234,7 @@ npm run dev -- --port 3001
 
 ## Deployment
 
-Both [`vercel.json`](vercel.json) and [`netlify.toml`](netlify.toml) are pre-configured with Vite build settings, SPA fallback routing, security headers, and 1-year immutable caching for `/assets/*`.
+Both [`vercel.json`](vercel.json) and [`netlify.toml`](netlify.toml) are pre-configured with Vite build settings, SPA fallback routing, security headers, and 1-year immutable caching for `/assets/*`. The automated path is Vercel via GitHub Actions (see [CI/CD Pipeline](#cicd-pipeline)); the manual commands below still work.
 
 ### Deploy to Vercel
 

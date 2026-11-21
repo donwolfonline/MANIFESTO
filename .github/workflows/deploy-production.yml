@@ -1,0 +1,76 @@
+name: Deploy Production
+
+# On merge to main: re-run the full CI suite on the merge commit, then deploy
+# the exact same commit to Vercel production and smoke-test it.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to production (Vercel)
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pull Vercel production environment
+        run: npx --yes vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel
+        run: npx --yes vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt production build
+        id: deploy
+        run: |
+          url=$(npx --yes vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Production deployed: $url"
+
+      - name: Smoke-test production (home, security headers, /api/health)
+        env:
+          SITE_URL: ${{ vars.SITE_URL || steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          base="${SITE_URL%/}"
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS -o /dev/null "$base/"; then break; fi
+            echo "Waiting for $base (attempt $attempt)..."; sleep 6
+          done
+
+          headers=$(curl -fsSI "$base/")
+          for h in content-security-policy x-content-type-options referrer-policy permissions-policy strict-transport-security; do
+            echo "$headers" | grep -qi "^$h:" || { echo "Missing header: $h"; exit 1; }
+          done
+
+          curl -fsS "$base/" | grep -q "WORKING_COPY.md" || { echo "Home page missing title marker"; exit 1; }
+          curl -fsS "$base/api/health" | grep -q '"ok":true' || { echo "/api/health is not healthy"; exit 1; }
+          echo "✓ Production smoke test passed for $base"

@@ -45,32 +45,32 @@ async function main() {
       <rect x="36" y="36" width="1128" height="558" fill="none" stroke="#f2eee8" stroke-opacity="0.14" stroke-width="1" />
 
       <!-- Top accent bar -->
-      <rect x="36" y="36" width="180" height="2" fill="#eb5e28" />
+      <rect x="36" y="36" width="180" height="2" fill="#f0642d" />
 
       <!-- Top metadata row -->
-      <circle cx="80" cy="88" r="4" fill="#eb5e28" />
-      <text x="98" y="93" fill="#f2eee8" font-family="Menlo, Monaco, Courier, monospace" font-size="16" letter-spacing="2.4">~/MANIFESTO.MD</text>
+      <circle cx="80" cy="88" r="4" fill="#f0642d" />
+      <text x="98" y="93" fill="#f2eee8" font-family="Menlo, Monaco, Courier, monospace" font-size="16" letter-spacing="2.4">~/WORKING_COPY.MD</text>
       <text x="1120" y="93" text-anchor="end" fill="#968f86" font-family="Menlo, Monaco, Courier, monospace" font-size="14" letter-spacing="2.2">PLAIN TEXT · UTF-8</text>
 
       <!-- Giant editorial display wordmark -->
-      <text x="76" y="318" fill="#f2eee8" font-family="Georgia, 'Times New Roman', serif" font-size="126" letter-spacing="-3.5">
-        MANIFESTO<tspan fill="#eb5e28">.</tspan><tspan fill="#b8b1a7" font-style="italic">md</tspan>
+      <text x="76" y="314" fill="#f2eee8" font-family="Georgia, 'Times New Roman', serif" font-size="104" letter-spacing="-2.8">
+        WORKING_COPY<tspan fill="#f0642d">.</tspan><tspan fill="#b8b1a7" font-style="italic">md</tspan>
       </text>
 
       <!-- Three terminal-style Markdown blockquote lines -->
       <text x="78" y="394" font-family="Menlo, Monaco, Courier, monospace" font-size="20">
-        <tspan fill="#eb5e28">&gt;</tspan><tspan dx="12" fill="#b8b1a7">a working manifesto. notes-to-self, mostly.</tspan>
+        <tspan fill="#f0642d">&gt;</tspan><tspan dx="12" fill="#b8b1a7">a field manual for working engineers. notes-to-self, mostly.</tspan>
       </text>
       <text x="78" y="430" font-family="Menlo, Monaco, Courier, monospace" font-size="20">
-        <tspan fill="#eb5e28">&gt;</tspan><tspan dx="12" fill="#b8b1a7">written in plain text so it outlives every tool that renders it.</tspan>
+        <tspan fill="#f0642d">&gt;</tspan><tspan dx="12" fill="#b8b1a7">honest about tight deadlines, shifting stacks, and 2am alerts.</tspan>
       </text>
       <text x="78" y="466" font-family="Menlo, Monaco, Courier, monospace" font-size="20">
-        <tspan fill="#eb5e28">&gt;</tspan><tspan dx="12" fill="#b8b1a7">quiet type, generous silence, and one spark of heat.</tspan>
+        <tspan fill="#f0642d">&gt;</tspan><tspan dx="12" fill="#b8b1a7">stubbornly devoted to building software that holds up.</tspan>
       </text>
 
       <!-- Bottom colophon rule -->
       <line x1="76" y1="530" x2="1124" y2="530" stroke="#f2eee8" stroke-opacity="0.14" stroke-width="1" />
-      <text x="78" y="562" fill="#968f86" font-family="Menlo, Monaco, Courier, monospace" font-size="14" letter-spacing="2">THE ACTUAL (HUMAN) JOB · 10 WORKING NOTES</text>
+      <text x="78" y="562" fill="#968f86" font-family="Menlo, Monaco, Courier, monospace" font-size="14" letter-spacing="2">THE ACTUAL (HUMAN) JOB · 10 PRINCIPLES</text>
       <text x="1124" y="562" text-anchor="end" fill="#f2eee8" font-family="Menlo, Monaco, Courier, monospace" font-size="14" letter-spacing="2">READ →</text>
     </svg>
   `);

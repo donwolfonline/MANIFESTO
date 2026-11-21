@@ -1,12 +1,10 @@
 import { useEffect, useRef } from 'react';
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-} from 'framer-motion';
 import humanJobJpg from '../assets/human-job.jpg';
 import humanJobWebp from '../assets/human-job.webp';
+import {
+  usePrefersReducedMotion,
+  useScrollScrub,
+} from '../lib/useViewportActivity';
 
 export interface FullBleedTransitionProps {
   /** Leading Markdown hash marker rendered in the accent color */
@@ -37,10 +35,11 @@ export function FullBleedTransition({
   imageAlt = 'A single person standing quietly beside a long dark-wood worktable in soft directional daylight.',
 }: FullBleedTransitionProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const prefersReducedMotion = useReducedMotion();
+  const clipFrameRef = useRef<HTMLDivElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
-  // Warm-fetch and decode the tiny 32KB WebP during idle time after initial
-  // render so entering the pinned transition never stutters mid-scroll.
+  // Warm-fetch and decode the tiny 32KB WebP during idle time after initial render
   useEffect(() => {
     const preloadSrc = webpSrc || imageSrc;
     if (!preloadSrc) return;
@@ -55,7 +54,10 @@ export function FullBleedTransition({
     };
 
     const w = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
       cancelIdleCallback?: (id: number) => void;
     };
     if (typeof w.requestIdleCallback === 'function') {
@@ -66,33 +68,30 @@ export function FullBleedTransition({
     return () => window.clearTimeout(timer);
   }, [webpSrc, imageSrc]);
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end end'],
-  });
-
-  // Scale image from 1.15 -> 1 across the pinned transition window
-  const imageScale = useTransform(
-    scrollYProgress,
-    [0, TRANSITION_END],
-    [1.15, 1],
+  // Scrub clip-path and image scale directly; pauses automatically when off-screen or tab is hidden
+  useScrollScrub(
+    sectionRef,
+    (progress) => {
+      const t = Math.min(1, Math.max(0, progress / TRANSITION_END));
+      if (clipFrameRef.current) {
+        const insetY = 15 * (1 - t);
+        const insetX = 10 * (1 - t);
+        const radius = 12 * (1 - t);
+        clipFrameRef.current.style.clipPath = `inset(${insetY.toFixed(1)}% ${insetX.toFixed(1)}% round ${radius.toFixed(1)}px)`;
+      }
+      if (imgRef.current) {
+        const scale = 1.15 - 0.15 * t;
+        imgRef.current.style.transform = `scale(${scale.toFixed(4)})`;
+      }
+    },
+    { disabled: prefersReducedMotion },
   );
-
-  // Expand clip-path from inset(15% 10% round 12px) -> inset(0)
-  const clipPath = useTransform(scrollYProgress, (progress) => {
-    const t = Math.min(1, Math.max(0, progress / TRANSITION_END));
-    const insetY = 15 * (1 - t);
-    const insetX = 10 * (1 - t);
-    const radius = 12 * (1 - t);
-    return `inset(${insetY.toFixed(1)}% ${insetX.toFixed(1)}% round ${radius.toFixed(1)}px)`;
-  });
 
   const darkOverlayStyle = {
     background:
       'radial-gradient(ellipse at center, rgba(20, 18, 19, 0.56) 0%, rgba(20, 18, 19, 0.3) 56%, rgba(20, 18, 19, 0.64) 100%), linear-gradient(to bottom, rgba(32, 30, 31, 0.5) 0%, rgba(32, 30, 31, 0.16) 35%, rgba(32, 30, 31, 0.24) 68%, rgba(32, 30, 31, 0.72) 100%)',
   };
 
-  // Static full-bleed presentation (no pinning) when prefers-reduced-motion is enabled
   if (prefersReducedMotion) {
     return (
       <section
@@ -124,11 +123,11 @@ export function FullBleedTransition({
           style={{
             fontSize: 'clamp(1.125rem, 2.75vw, 2.35rem)',
             lineHeight: 1.25,
-            color: 'var(--color-text)',
+            color: '#f2eee8',
             textShadow: '0 2px 28px rgba(18, 16, 17, 0.65)',
           }}
         >
-          <span aria-hidden="true" style={{ color: 'var(--color-accent)' }}>
+          <span aria-hidden="true" style={{ color: '#f0642d' }}>
             {prefix}
           </span>{' '}
           <span>{heading}</span>
@@ -145,16 +144,16 @@ export function FullBleedTransition({
       className="relative h-[175dvh] w-full"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
-      {/* Pinned 100dvh viewport stage: holds heading centered during clip-path/scale transition, then releases */}
       <div className="sticky top-0 h-dvh w-full flex items-center justify-center overflow-hidden">
-        {/* Expanding clipped image frame */}
-        <motion.div
+        <div
+          ref={clipFrameRef}
           className="absolute inset-0 overflow-hidden"
-          style={{ clipPath }}
+          style={{ clipPath: 'inset(15.0% 10.0% round 12.0px)' }}
         >
           <picture className="block w-full h-full">
             {webpSrc && <source srcSet={webpSrc} type="image/webp" />}
-            <motion.img
+            <img
+              ref={imgRef}
               src={imageSrc}
               alt={imageAlt}
               width={imageWidth}
@@ -163,7 +162,7 @@ export function FullBleedTransition({
               decoding="async"
               fetchPriority="low"
               className="w-full h-full object-cover select-none will-change-transform"
-              style={{ scale: imageScale }}
+              style={{ transform: 'scale(1.15)' }}
               draggable={false}
             />
           </picture>
@@ -172,19 +171,18 @@ export function FullBleedTransition({
             className="absolute inset-0 pointer-events-none"
             style={darkOverlayStyle}
           />
-        </motion.div>
+        </div>
 
-        {/* Pinned centered mono heading */}
         <h2
           className="relative z-10 m-0 px-6 text-center font-mono font-normal tracking-[0.02em]"
           style={{
             fontSize: 'clamp(1.125rem, 2.75vw, 2.35rem)',
             lineHeight: 1.25,
-            color: 'var(--color-text)',
+            color: '#f2eee8',
             textShadow: '0 2px 28px rgba(18, 16, 17, 0.65)',
           }}
         >
-          <span aria-hidden="true" style={{ color: 'var(--color-accent)' }}>
+          <span aria-hidden="true" style={{ color: '#f0642d' }}>
             {prefix}
           </span>{' '}
           <span>{heading}</span>

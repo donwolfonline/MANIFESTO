@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './fonts.css';
 @import './tokens.css';
 
 @theme {
@@ -29,13 +30,14 @@
 
   body {
     margin: 0;
-    min-height: 100vh;
+    min-height: 100svh;
     min-height: 100dvh;
     background-color: var(--color-bg);
     color: var(--color-text);
     font-size: var(--text-body);
     line-height: var(--leading-body);
     overflow-x: clip;
+    overflow-wrap: break-word;
   }
 
   ::selection {
@@ -43,10 +45,24 @@
     color: var(--color-accent-ink);
   }
 
-  :focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 4px;
+  :focus-visible,
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role='button']:focus-visible,
+  [role='slider']:focus-visible,
+  [tabindex]:not([tabindex='-1']):focus-visible {
+    outline: 2px solid var(--color-accent) !important;
+    outline-offset: 4px !important;
     border-radius: var(--radius-xs);
+  }
+
+  /* Subtle tactile press feedback (scale 0.97) on all interactive buttons */
+  button:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active {
+    transform: scale(0.97);
   }
 }
 
@@ -68,25 +84,151 @@ html.lenis body {
   overflow: hidden;
 }
 
-/* Full-viewport subtle film grain overlay (~4% opacity, static GPU tile) */
+/* Full-viewport subtle film grain overlay (~4% opacity, static GPU tile with very slow drift) */
+@keyframes film-grain-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-48px, -32px, 0);
+  }
+  100% {
+    transform: translate3d(36px, -56px, 0);
+  }
+}
+
 .film-grain {
   position: fixed;
-  inset: 0;
+  inset: -64px;
   pointer-events: none;
   z-index: var(--z-grain);
   opacity: var(--grain-opacity);
   background-repeat: repeat;
   background-size: 128px 128px;
   contain: strict;
-  transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
 
-/* Editorial container utility */
+.film-grain--drift {
+  animation: film-grain-drift 34s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-grain--drift {
+    animation: none;
+  }
+}
+
+/* Hero display title: fluid clamp(3rem, 11.5vw, 15rem), 2-line break < 640px, masked 50ms stagger */
+.hero-display-title {
+  font-size: clamp(3rem, 11.5vw, 15rem);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  max-width: 100%;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+.hero-title-line {
+  display: inline;
+}
+
+@media (max-width: 639.98px) {
+  .hero-display-title {
+    line-height: 0.94;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .hero-title-line {
+    display: block;
+  }
+}
+
+.hero-char-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.04em;
+  margin-bottom: -0.04em;
+}
+
+.hero-char {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+@keyframes hero-char-masked-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 108%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.hero-char-reveal {
+  animation: hero-char-masked-up 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hero-dot-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0) translate3d(0, 0.18em, 0);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1.34) translate3d(0, -0.06em, 0);
+  }
+  82% {
+    opacity: 1;
+    transform: scale(0.9) translate3d(0, 0.02em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.hero-dot-pop {
+  animation: hero-dot-bounce-in 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Mobile-tuned blockquote size + 20px side padding */
+.hero-blockquote-list {
+  --hero-blockquote-size: var(--text-meta);
+}
+
+@media (max-width: 639.98px) {
+  .hero-blockquote-list {
+    --hero-blockquote-size: clamp(0.66rem, 2.7vw, 0.74rem);
+  }
+}
+
+/* Visible focus state on Hero "Skip to the text" link */
+.hero-skip-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-xs);
+  color: var(--color-text) !important;
+  background-color: var(--color-accent-soft);
+  padding-inline: 0.35rem;
+}
+
+/* Editorial centered container capped at ~1440px (90rem) with safe-area notch insets */
 .editorial-shell {
   width: 100%;
   max-width: var(--container-max);
   margin-inline: auto;
-  padding-inline: var(--gutter);
+  padding-inline-start: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+.editorial-measure {
+  max-width: min(var(--measure), 100%);
 }
 
 /* Editorial Markdown list markers */
@@ -123,13 +265,13 @@ html.lenis body {
 /* Huge outlined display numerals for the reading section */
 .outlined-number {
   color: transparent;
-  -webkit-text-stroke: 1.25px rgba(242, 238, 232, 0.3);
+  -webkit-text-stroke: 1.25px var(--color-border-strong);
   paint-order: stroke fill;
 }
 
 @media (min-width: 1024px) {
   .outlined-number {
-    -webkit-text-stroke: 1.5px rgba(242, 238, 232, 0.28);
+    -webkit-text-stroke: 1.5px var(--color-border-strong);
   }
 }
 
@@ -165,17 +307,31 @@ html.lenis body {
   transition: transform var(--duration-base) var(--ease-editorial);
 }
 
-.link-draw:hover::after,
+@media (hover: hover) {
+  .link-draw:hover::after,
+  .group:hover .link-draw::after {
+    transform: scaleX(1);
+  }
+}
+
 .link-draw:focus-visible::after,
-.group:hover .link-draw::after,
 .group:focus-visible .link-draw::after {
   transform: scaleX(1);
 }
 
-/* Hide default system cursor only on desktop fine-pointer devices when CustomCursor is active */
-html.has-custom-cursor,
-html.has-custom-cursor * {
-  cursor: none !important;
+/* Hide default system cursor only on desktop fine-pointer devices when CustomCursor has moved */
+@media (hover: hover) and (pointer: fine) {
+  html.has-custom-cursor,
+  html.has-custom-cursor * {
+    cursor: none !important;
+  }
+}
+
+/* Hide custom cursor completely on touch and pointer: coarse devices */
+@media (pointer: coarse), (hover: none) {
+  .custom-cursor-root {
+    display: none !important;
+  }
 }
 
 /* Terminal blinking cursor for <TypedLine /> */
@@ -194,14 +350,402 @@ html.has-custom-cursor * {
   animation: terminal-blink 1s steps(1, end) infinite;
 }
 
-/* Hard reduced-motion guarantee across all CSS animations & transitions */
+/* Scroll-drop indicator keyframe for Hero (GPU-composited, zero JS) */
+@keyframes scroll-line-drop {
+  0% {
+    transform: translateY(-100%);
+  }
+  85%,
+  100% {
+    transform: translateY(220%);
+  }
+}
+
+.hero-scroll-drop {
+  animation: scroll-line-drop 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* Tactile heart-pop animation for Wall like buttons */
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.38);
+  }
+  72% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.heart-pop {
+  animation: heart-pop 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal / overlay entrance animation (GPU-composited opacity + transform) */
+@keyframes panel-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.panel-enter {
+  animation: panel-fade-up 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes backdrop-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.backdrop-enter {
+  animation: backdrop-fade 180ms ease-out both;
+}
+
+@keyframes today-ambient-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
+
+@keyframes today-rings-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Soft 4-second status dot pulse in the Header */
+@keyframes header-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(240, 100, 45, 0.45);
+  }
+  50% {
+    opacity: 0.58;
+    transform: scale(1.16);
+    box-shadow: 0 0 0 4px rgba(240, 100, 45, 0);
+  }
+}
+
+.header-status-dot {
+  animation: header-status-pulse 4s ease-in-out infinite;
+}
+
+/* Header mono links: 11.5px, 0.14em tracking, off-white at 70% opacity -> 100% on hover */
+.header-mono-item {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-header-link);
+  transition: color var(--duration-fast) var(--ease-editorial);
+}
+
+.header-mono-item:hover,
+.header-mono-item:focus-visible,
+.header-mono-item[data-active='true'] {
+  color: var(--color-header-link-hover);
+}
+
+/* Container query root for adaptive Priority+ Header */
+.header-cq-root {
+  container-type: inline-size;
+  container-name: site-header;
+}
+
+/* Staggered 200ms opacity + 8px slide animations for Priority+ links entering/leaving on resize */
+@keyframes priority-link-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes priority-link-exit {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+.priority-nav-link-enter {
+  animation: priority-link-enter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.priority-nav-link-exit {
+  animation: priority-link-exit 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: none;
+}
+
+/* Container queries for header density adaptation across split-screen, foldables, and zoom */
+@container site-header (max-width: 767px) {
+  .header-cq-shell {
+    gap: 0.5rem;
+  }
+}
+
+/* Coarse pointer (touch devices): enforce >= 44x44px tap targets and disable hover-only affordances */
+@media (pointer: coarse) {
+  .header-cq-root .header-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .header-cq-root .link-draw::after {
+    display: none;
+  }
+
+  .field-index-preview-col {
+    display: none !important;
+  }
+}
+
+/* Field Index Overlay: 60ms staggered item entrance */
+@keyframes field-index-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.field-index-stagger-item {
+  animation: field-index-item-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* When wrapped inside <PageShell> on sub-routes, suppress legacy per-page top bars
+   and duplicate title blocks so only PageShell's compact breadcrumb header & intro appear */
+.pageshell-body > .subpage-shell > div > header:first-of-type,
+.pageshell-body > header:first-of-type {
+  display: none;
+}
+
+.pageshell-body [data-legacy-title-block='true'] {
+  display: none;
+}
+
+/* When the persistent global Header is mounted in App.tsx, hide duplicate sub-page local headers
+   and offset sub-page content cleanly by --header-h + safe-area-inset-top */
+.has-global-header .subpage-shell > header:first-of-type {
+  display: none;
+}
+
+.has-global-header .subpage-shell {
+  padding-top: calc(var(--header-h, 4.25rem) + env(safe-area-inset-top, 0px));
+}
+
+/* First elements of incoming route stagger in after the transition curtain lifts */
+@keyframes route-element-stagger-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.route-stagger-enter main > *:nth-child(1) {
+  animation: route-element-stagger-in 340ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both;
+}
+
+.route-stagger-enter main > *:nth-child(2) {
+  animation: route-element-stagger-in 340ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+}
+
+.route-stagger-enter main > *:nth-child(3) {
+  animation: route-element-stagger-in 340ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+}
+
+/* View Transitions API shared element support for route title morphing */
+::view-transition-old(route-heading),
+::view-transition-new(route-heading) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 1px outlined mono skeleton blocks with slow horizontal shimmer (never opaque gray boxes) */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-outline-block {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background-color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(240, 100, 45, 0.08) 44%,
+    rgba(242, 238, 232, 0.09) 50%,
+    rgba(240, 100, 45, 0.08) 56%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 2.8s linear infinite;
+  font-family: var(--font-mono);
+}
+
+/* Editorial -> Raw .md dissolve & block-stagger typing (max 800ms total) */
+@keyframes editorial-dissolve-compress {
+  0% {
+    opacity: 0.75;
+    transform: translate3d(0, 0, 0) scaleY(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scaleY(0.95);
+    filter: blur(2px);
+  }
+}
+
+.editorial-dissolve-out {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-accent),
+    transparent
+  );
+  transform-origin: top center;
+  animation: editorial-dissolve-compress 240ms cubic-bezier(0.22, 1, 0.36, 1)
+    forwards;
+}
+
+@keyframes raw-block-type-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.raw-block-type-in {
+  animation-name: raw-block-type-reveal;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+
+/* Component Container Queries (cards, terminal, sliders, wall, shelf) */
+.cq-card,
+.cq-terminal,
+.cq-slider,
+.cq-wall,
+.cq-shelf {
+  container-type: inline-size;
+}
+
+.cq-wall-masonry {
+  column-count: 1;
+  column-gap: 1.25rem;
+}
+
+@container (min-width: 600px) {
+  .cq-wall-masonry {
+    column-count: 2;
+  }
+}
+
+@container (min-width: 960px) {
+  .cq-wall-masonry {
+    column-count: 3;
+  }
+}
+
+@container (min-width: 1680px) {
+  .cq-wall-masonry {
+    column-count: 4;
+  }
+}
+
+/* Coarse pointer / touch ergonomics: min 44x44px hit targets & 8px gap, show on-screen terminal key row */
+.terminal-mobile-key-row {
+  display: flex;
+}
+
+@media (min-width: 640px) and (pointer: fine) {
+  .terminal-mobile-key-row {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .touch-target,
+  button,
+  [role='button'],
+  [role='tab'],
+  [role='slider'] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .terminal-mobile-key-row {
+    display: flex !important;
+  }
+}
+
+/* Landscape phones: shorter hero stage & compact header spacing */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hero-section {
+    min-height: 82svh !important;
+    padding-top: calc(var(--header-h) + 0.5rem) !important;
+    padding-bottom: 1rem !important;
+  }
+}
+
+/* Low-power / battery-saver mode: pause ambient keyframe animations */
+:root[data-low-power='true'] .film-grain--drift,
+:root[data-low-power='true'] .header-status-dot,
+:root[data-low-power='true'] .hero-scroll-drop,
+:root[data-low-power='true'] .skeleton-outline-block {
+  animation-play-state: paused !important;
+  animation: none !important;
+}
+
+/* Respect reduced-motion for smooth scroll behavior while keeping UI transitions & feedback responsive */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html {
     scroll-behavior: auto !important;
   }
 }

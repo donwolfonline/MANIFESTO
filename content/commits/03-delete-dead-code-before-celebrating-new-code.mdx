@@ -1,0 +1,49 @@
+---
+principleNumber: 3
+hash: 0f6b92d
+prefix: refactor
+title: delete dead code before celebrating new code
+slug: delete-dead-code-before-celebrating-new-code
+author: working-engineer
+date: 2026-04-03
+relativeDate: 7 months ago
+filePath: habits/deletion.md
+tags:
+  - refactor
+  - git-history
+summary: "refactor: delete dead code before celebrating new code"
+draft: false
+hunks:
+  - removed:
+      - Keep a 400-line legacy checkout fallback alive "in case we ever need it again."
+    added:
+      - Adding a feature earns applause in Slack, while removing a 400-line legacy checkout fallback
+        nobody has triggered since 2023 barely gets a thumbs-up.
+    blame:
+      hash: 0f6b92d
+      author: archaeologist
+      when: 2026-04-03 10:52
+      note: metrics confirmed zero calls in 412 consecutive days
+  - removed:
+      - Measure engineering output by green lines added.
+    added:
+      - Remove it anyway. A pull request reading `+6 / -412` is one of the cleanest gifts you can
+        hand your team.
+    blame:
+      hash: 0f6b92d
+      author: future-me
+      when: 2026-04-03 11:04
+      note: hovered over Create PR with mild vertigo; CI turned green in 40s
+---
+
+## Hunk 1
+
+Adding a feature earns applause in Slack, while removing a 400-line legacy checkout fallback nobody has triggered since 2023 barely gets a thumbs-up.
+
+> Blame (archaeologist, 2026-04-03 10:52): metrics confirmed zero calls in 412 consecutive days
+
+## Hunk 2
+
+Remove it anyway. A pull request reading `+6 / -412` is one of the cleanest gifts you can hand your team.
+
+> Blame (future-me, 2026-04-03 11:04): hovered over Create PR with mild vertigo; CI turned green in 40s

@@ -1,0 +1,119 @@
+name: Uptime & Security Header Monitor
+
+on:
+  schedule:
+    # Check every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  uptime-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe homepage, security headers, and /api/health
+        id: probe
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          UPTIME_ALERT_WEBHOOK_URL: ${{ secrets.UPTIME_ALERT_WEBHOOK_URL }}
+        run: |
+          node -e '
+          const siteUrl = (process.env.SITE_URL || "").replace(/\/+$/, "");
+          if (!siteUrl) {
+            console.log("SITE_URL repository variable is not set yet; skipping live probe.");
+            process.exit(0);
+          }
+
+          async function check() {
+            const errors = [];
+
+            // 1. Check homepage availability, expected content, and required security headers
+            const homeRes = await fetch(siteUrl + "/", { redirect: "follow" });
+            if (homeRes.status !== 200) {
+              errors.push(`GET / returned HTTP ${homeRes.status}`);
+            }
+            const html = await homeRes.text();
+            if (!html.includes("WORKING_COPY.md")) {
+              errors.push("GET / response body missing expected title marker");
+            }
+            for (const header of ["content-security-policy", "x-content-type-options", "referrer-policy", "permissions-policy"]) {
+              if (!homeRes.headers.get(header)) {
+                errors.push(`Missing security header on /: ${header}`);
+              }
+            }
+
+            // 2. Check /api/health endpoint
+            const healthRes = await fetch(siteUrl + "/api/health");
+            if (healthRes.status !== 200) {
+              errors.push(`GET /api/health returned HTTP ${healthRes.status}`);
+            } else {
+              const data = await healthRes.json().catch(() => ({}));
+              if (!data.ok) {
+                errors.push(`GET /api/health reported unhealthy: ${JSON.stringify(data)}`);
+              }
+            }
+
+            if (errors.length > 0) {
+              const summary = `Uptime alert for ${siteUrl}: ${errors.join("; ")}`;
+              console.error(summary);
+
+              const webhook = process.env.UPTIME_ALERT_WEBHOOK_URL || "";
+              if (webhook && /^https:\/\//i.test(webhook)) {
+                await fetch(webhook, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text: summary, content: summary }),
+                }).catch(() => {});
+              }
+              process.exit(1);
+            }
+
+            console.log(`✓ ${siteUrl} healthy (200 OK, security headers present, /api/health ok)`);
+          }
+
+          check().catch((err) => {
+            console.error("Uptime probe crashed:", err);
+            process.exit(1);
+          });
+          '
+
+      - name: Open or update GitHub uptime alert issue on failure
+        if: failure() && vars.SITE_URL != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Uptime Alert: Site health check failed';
+            const body = [
+              `Automated uptime check failed for **${process.env.SITE_URL}** at ${new Date().toISOString()}.`,
+              '',
+              `Inspect run logs: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'uptime-alert',
+            });
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['uptime-alert'],
+              });
+            }
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}

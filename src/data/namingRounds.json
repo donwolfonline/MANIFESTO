@@ -1,0 +1,412 @@
+[
+  {
+    "id": "round-01-cache-ttl",
+    "number": 1,
+    "title": "The Magic Timeout Number",
+    "filename": "src/auth/sessionCache.ts",
+    "badName": "d",
+    "kind": "constant",
+    "baselineReadability": 16,
+    "code": "const d = 15 * 60 * 1000;\n\nexport function isSessionExpired(lastActiveAtMs: number, nowMs = Date.now()): boolean {\n  return nowMs - lastActiveAtMs > d;\n}",
+    "acceptedKeywords": ["session", "ttl", "timeout", "idle", "expiry", "expiration", "ms", "millis"],
+    "options": [
+      {
+        "id": "a",
+        "name": "d",
+        "isBest": false,
+        "readability": 16,
+        "reasoning": "Single-letter 'd' hides both what is being timed and whether the unit is seconds, minutes, or milliseconds."
+      },
+      {
+        "id": "b",
+        "name": " FIFTEEN_MINUTES",
+        "isBest": false,
+        "readability": 42,
+        "reasoning": "Restating the literal value in English breaks the moment product changes the timeout from 15 minutes to 30."
+      },
+      {
+        "id": "c",
+        "name": "SESSION_IDLE_TTL_MS",
+        "isBest": true,
+        "readability": 97,
+        "reasoning": "Names the domain concept (session idle TTL) and embeds the unit (_MS) so nobody divides by 1000 twice."
+      },
+      {
+        "id": "d",
+        "name": "timeoutValue",
+        "isBest": false,
+        "readability": 58,
+        "reasoning": "Says it is a timeout, but leaves the reader guessing the unit and which subsystem it governs."
+      }
+    ]
+  },
+  {
+    "id": "round-02-double-negative",
+    "number": 2,
+    "title": "The Double-Negative Flag",
+    "filename": "src/notifications/emailDispatcher.ts",
+    "badName": "noSkip",
+    "kind": "boolean",
+    "baselineReadability": 19,
+    "code": "export function shouldSendDigest(user: UserPrefs, noSkip: boolean): boolean {\n  if (!noSkip) {\n    return false;\n  }\n  return user.digestSubscribed && !user.bounced;\n}",
+    "acceptedKeywords": ["send", "force", "allow", "enable", "include", "deliver", "active"],
+    "options": [
+      {
+        "id": "a",
+        "name": "isNotDisabled",
+        "isBest": false,
+        "readability": 22,
+        "reasoning": "Reading '!isNotDisabled' at 2am forces your brain to untangle three stacked negations before understanding a simple branch."
+      },
+      {
+        "id": "b",
+        "name": "deliveryEnabled",
+        "isBest": true,
+        "readability": 95,
+        "reasoning": "Positive boolean names let 'if (!deliveryEnabled)' read like a plain English sentence on the first pass."
+      },
+      {
+        "id": "c",
+        "name": "flag",
+        "isBest": false,
+        "readability": 14,
+        "reasoning": "Calling a boolean 'flag' is like labeling a kitchen jar 'matter'—technically true and completely unhelpful."
+      },
+      {
+        "id": "d",
+        "name": "dontSuppress",
+        "isBest": false,
+        "readability": 31,
+        "reasoning": "Still encodes a negative verb ('dontSuppress'), turning every falsy check into a double negative."
+      }
+    ]
+  },
+  {
+    "id": "round-03-side-effect-getter",
+    "number": 3,
+    "title": "The Getter ThatSecretly Mutates",
+    "filename": "src/billing/invoiceQueue.ts",
+    "badName": "checkInvoice",
+    "kind": "function",
+    "baselineReadability": 24,
+    "code": "export async function checkInvoice(invoiceId: string): Promise<boolean> {\n  const invoice = await db.invoices.find(invoiceId);\n  if (!invoice || invoice.paidAt) return false;\n  await paymentGateway.chargeCustomer(invoice.customerId, invoice.amountCents);\n  await db.invoices.markPaid(invoiceId);\n  return true;\n}",
+    "acceptedKeywords": ["charge", "pay", "settle", "collect", "bill", "capture", "unpaid"],
+    "options": [
+      {
+        "id": "a",
+        "name": "checkInvoice",
+        "isBest": false,
+        "readability": 24,
+        "reasoning": "Verbs like 'check' promise a safe read-only inspection, hiding the fact that calling it charges a credit card."
+      },
+      {
+        "id": "b",
+        "name": "handleInvoice",
+        "isBest": false,
+        "readability": 35,
+        "reasoning": "'handle' is a polite shrug of a verb that admits something happens to an invoice without saying what."
+      },
+      {
+        "id": "c",
+        "name": "chargeAndMarkInvoicePaid",
+        "isBest": true,
+        "readability": 96,
+        "reasoning": "Puts both irreversible side effects—charging the customer and marking the row paid—right on the label."
+      },
+      {
+        "id": "d",
+        "name": "process",
+        "isBest": false,
+        "readability": 18,
+        "reasoning": "Every line of software 'processes' something; the verb adds zero signal to a call site."
+      }
+    ]
+  },
+  {
+    "id": "round-04-filter-keep-or-drop",
+    "number": 4,
+    "title": "The Ambiguous Filter Array",
+    "filename": "src/uploads/attachmentCleaner.ts",
+    "badName": "res2",
+    "kind": "variable",
+    "baselineReadability": 21,
+    "code": "export function pruneAttachments(files: UploadedFile[], nowMs: number) {\n  const res2 = files.filter(\n    (f) => !f.pinned && nowMs - f.createdAtMs > ORPHAN_MAX_AGE_MS,\n  );\n  return res2.map((f) => f.storageKey);\n}",
+    "acceptedKeywords": ["expired", "orphan", "stale", "prunable", "unpinned", "old", "files", "attachments"],
+    "options": [
+      {
+        "id": "a",
+        "name": "filteredFiles",
+        "isBest": false,
+        "readability": 52,
+        "reasoning": "'filteredFiles' never clarifies whether the array holds the survivors we kept or the stale files we are about to delete."
+      },
+      {
+        "id": "b",
+        "name": "expiredUnpinnedFiles",
+        "isBest": true,
+        "readability": 96,
+        "reasoning": "States the exact membership rule (expired and unpinned) so nobody accidentally deletes the files meant to be kept."
+      },
+      {
+        "id": "c",
+        "name": "res2",
+        "isBest": false,
+        "readability": 21,
+        "reasoning": "Numbered scratch names ('res2') force the reader to re-parse the filter predicate every time the variable is used."
+      },
+      {
+        "id": "d",
+        "name": "fileListArray",
+        "isBest": false,
+        "readability": 29,
+        "reasoning": "Repeats the collection type twice while saying nothing about why these specific files were selected."
+      }
+    ]
+  },
+  {
+    "id": "round-05-unit-collision",
+    "number": 5,
+    "title": "The Cents vs. Dollars Trap",
+    "filename": "src/checkout/discountEngine.ts",
+    "badName": "val",
+    "kind": "variable",
+    "baselineReadability": 20,
+    "code": "export function applyCoupon(subtotalCents: number, discountPercent: number): number {\n  const val = Math.round(subtotalCents * (discountPercent / 100));\n  return Math.max(0, subtotalCents - val);\n}",
+    "acceptedKeywords": ["discount", "cents", "amount", "reduction", "deduction", "off"],
+    "options": [
+      {
+        "id": "a",
+        "name": "discountAmountCents",
+        "isBest": true,
+        "readability": 98,
+        "reasoning": "Pairs the quantity ('discountAmount') with its currency unit ('Cents') so it clearly matches 'subtotalCents'."
+      },
+      {
+        "id": "b",
+        "name": "val",
+        "isBest": false,
+        "readability": 20,
+        "reasoning": "'val' could be the discount, the final total, or the tax rate, and gives no hint whether it is in dollars or cents."
+      },
+      {
+        "id": "c",
+        "name": "discount",
+        "isBest": false,
+        "readability": 64,
+        "reasoning": "Easy to confuse with 'discountPercent' right next to it, and omits the '_Cents' unit suffix."
+      },
+      {
+        "id": "d",
+        "name": "mathResult",
+        "isBest": false,
+        "readability": 25,
+        "reasoning": "Describes how the CPU produced the number ('mathResult') instead of what the number means in checkout."
+      }
+    ]
+  },
+  {
+    "id": "round-06-lookup-map",
+    "number": 6,
+    "title": "The Mystery Lookup Dictionary",
+    "filename": "src/team/onCallRoster.ts",
+    "badName": "map",
+    "kind": "variable",
+    "baselineReadability": 26,
+    "code": "export function indexEngineers(roster: Engineer[]): Map<string, Engineer> {\n  const map = new Map<string, Engineer>();\n  for (const eng of roster) {\n    map.set(eng.githubHandle.toLowerCase(), eng);\n  }\n  return map;\n}",
+    "acceptedKeywords": ["by", "handle", "github", "engineer", "lookup", "index"],
+    "options": [
+      {
+        "id": "a",
+        "name": "map",
+        "isBest": false,
+        "readability": 26,
+        "reasoning": "Naming a Map 'map' tells the reader the data structure class they already saw in the type signature, not what key it indexes by."
+      },
+      {
+        "id": "b",
+        "name": "engineerData",
+        "isBest": false,
+        "readability": 38,
+        "reasoning": "'engineerData' sounds like a single record or raw payload and hides how to look anything up in it."
+      },
+      {
+        "id": "c",
+        "name": "engineerByGithubHandle",
+        "isBest": true,
+        "readability": 97,
+        "reasoning": "The 'valueByKey' convention ('engineerByGithubHandle') tells callers both what comes out and what key to pass into '.get()'."
+      },
+      {
+        "id": "d",
+        "name": "rosterHash",
+        "isBest": false,
+        "readability": 44,
+        "reasoning": "Sounds like a cryptographic checksum of the roster rather than a lookup table from handle to engineer."
+      }
+    ]
+  },
+  {
+    "id": "round-07-mystery-accumulator",
+    "number": 7,
+    "title": "The Reduce Accumulator",
+    "filename": "src/metrics/deployHealth.ts",
+    "badName": "acc",
+    "kind": "variable",
+    "baselineReadability": 28,
+    "code": "export function countFailedDeploys(deploys: DeployEvent[]): number {\n  return deploys.reduce(\n    (acc, deploy) => (deploy.status === 'rolled_back' ? acc + 1 : acc),\n    0,\n  );\n}",
+    "acceptedKeywords": ["rollback", "rolled", "failed", "failure", "count", "total"],
+    "options": [
+      {
+        "id": "a",
+        "name": "acc",
+        "isBest": false,
+        "readability": 28,
+        "reasoning": "'acc' is a habit from textbook examples that forces the reader to trace the initial value and return expression to learn it is a count."
+      },
+      {
+        "id": "b",
+        "name": "rollbackCount",
+        "isBest": true,
+        "readability": 95,
+        "reasoning": "Makes '(rollbackCount, deploy) => ...' self-documenting so the reducer body reads clearly without scanning to the end."
+      },
+      {
+        "id": "c",
+        "name": "num",
+        "isBest": false,
+        "readability": 24,
+        "reasoning": "'num' is just 'acc' in a different hat—it states the primitive type instead of what is being counted."
+      },
+      {
+        "id": "d",
+        "name": "prev",
+        "isBest": false,
+        "readability": 34,
+        "reasoning": "'prev' makes sense when comparing adjacent items, but misleads when the parameter is actually a running total."
+      }
+    ]
+  },
+  {
+    "id": "round-08-async-timestamp",
+    "number": 8,
+    "title": "The Ambiguous Date Field",
+    "filename": "src/incidents/postmortem.ts",
+    "badName": "time",
+    "kind": "variable",
+    "baselineReadability": 23,
+    "code": "export function getTimeToMitigateMinutes(incident: IncidentRecord): number {\n  const time = Date.parse(incident.mitigatedAtIso) - Date.parse(incident.detectedAtIso);\n  return Math.max(0, Math.round(time / 60_000));\n}",
+    "acceptedKeywords": ["mitigation", "duration", "elapsed", "delta", "ms", "millis"],
+    "options": [
+      {
+        "id": "a",
+        "name": "time",
+        "isBest": false,
+        "readability": 23,
+        "reasoning": "'time' is ambiguous between a wall-clock timestamp and a duration, and hides that Date.parse subtraction returns milliseconds."
+      },
+      {
+        "id": "b",
+        "name": "mitigatedAt",
+        "isBest": false,
+        "readability": 30,
+        "reasoning": "An '...At' suffix signals a point in time, which is dangerously misleading for a duration delta between two timestamps."
+      },
+      {
+        "id": "c",
+        "name": "timeDiff",
+        "isBest": false,
+        "readability": 61,
+        "reasoning": "Clarifies it is a delta, but omits the millisecond unit needed to verify the '/ 60_000' conversion on the next line."
+      },
+      {
+        "id": "d",
+        "name": "timeToMitigateMs",
+        "isBest": true,
+        "readability": 97,
+        "reasoning": "Distinguishes a duration from a point-in-time timestamp and makes the '/ 60_000' conversion to minutes obviously correct."
+      }
+    ]
+  },
+  {
+    "id": "round-09-event-callback",
+    "number": 9,
+    "title": "The Vague Event Handler",
+    "filename": "src/editor/draftAutosave.ts",
+    "badName": "doStuff",
+    "kind": "function",
+    "baselineReadability": 12,
+    "code": "export function doStuff(draftId: string, markdown: string): void {\n  window.localStorage.setItem(`draft:${draftId}`, markdown);\n  lastSavedIndicator.setText('Saved locally');\n}",
+    "acceptedKeywords": ["save", "persist", "store", "draft", "local", "autosave"],
+    "options": [
+      {
+        "id": "a",
+        "name": "doStuff",
+        "isBest": false,
+        "readability": 12,
+        "reasoning": "'doStuff' is a Friday-afternoon placeholder that accidentally survived into production and tells callers nothing."
+      },
+      {
+        "id": "b",
+        "name": "saveDraftLocally",
+        "isBest": true,
+        "readability": 96,
+        "reasoning": "Tells the caller both the action ('saveDraft') and the storage boundary ('Locally', i.e. browser storage rather than a server roundtrip)."
+      },
+      {
+        "id": "c",
+        "name": "onMarkdown",
+        "isBest": false,
+        "readability": 36,
+        "reasoning": "Names the trigger input ('onMarkdown') without saying what the function actually does with that markdown."
+      },
+      {
+        "id": "d",
+        "name": "draftManager",
+        "isBest": false,
+        "readability": 29,
+        "reasoning": "Functions do things and deserve verbs; noun phrases like 'draftManager' sound like an object instance or module."
+      }
+    ]
+  },
+  {
+    "id": "round-10-retry-boundary",
+    "number": 10,
+    "title": "The Off-By-One Limit",
+    "filename": "src/net/webhookSender.ts",
+    "badName": "n",
+    "kind": "variable",
+    "baselineReadability": 18,
+    "code": "export async function deliverWebhook(url: string, payload: string, n = 3): Promise<boolean> {\n  for (let attempt = 1; attempt <= n; attempt++) {\n    const ok = await tryPostOnce(url, payload);\n    if (ok) return true;\n  }\n  return false;\n}",
+    "acceptedKeywords": ["max", "attempts", "retries", "tries", "limit"],
+    "options": [
+      {
+        "id": "a",
+        "name": "n",
+        "isBest": false,
+        "readability": 18,
+        "reasoning": "At a call site like 'deliverWebhook(url, body, 3)', 'n' gives no clue whether 3 is a timeout in seconds, a batch size, or attempt count."
+      },
+      {
+        "id": "b",
+        "name": "retries",
+        "isBest": false,
+        "readability": 66,
+        "reasoning": "Classic off-by-one trap: 'retries = 3' makes callers think there is 1 initial try plus 3 retries (4 total), whereas the loop runs 'attempt <= 3' times total."
+      },
+      {
+        "id": "c",
+        "name": "maxAttempts",
+        "isBest": true,
+        "readability": 98,
+        "reasoning": "'maxAttempts' matches 'attempt <= maxAttempts' word-for-word, eliminating the classic off-by-one confusion between total attempts and retries."
+      },
+      {
+        "id": "d",
+        "name": "limitNumber",
+        "isBest": false,
+        "readability": 33,
+        "reasoning": "Every cap in a program is a 'limitNumber'; it fails to specify what is being limited."
+      }
+    ]
+  }
+]

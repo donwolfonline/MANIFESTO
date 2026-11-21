@@ -1,0 +1,31 @@
+---
+number: 1
+slug: write-the-pull-request-description-before-hitting-submit
+title: write the pull request description before you hit submit
+date: 2026-02-14
+tags:
+  - pull-requests
+  - communication
+  - teamwork
+summary: Three honest sentences explaining what changed, why, and how to test save your reviewer
+  forty minutes of archaeology.
+draft: false
+---
+
+A pull request with twenty-eight changed files and an empty description box is an ambush dressed up as collaboration.
+
+Three honest sentences explaining what changed, why you picked this trade-off, and how to test it locally save your reviewer forty minutes of archaeology. If you cannot summarize the diff in a short paragraph, the branch is probably doing *two jobs*.
+
+## What belongs in those three sentences
+
+Good pull request notes never repeat the diff line by line. They answer the three questions a reviewer cannot easily infer from syntax alone: what problem forced this change, which alternative you rejected, and how to verify it on a fresh checkout.
+
+## The two-job smell test
+
+Whenever your description starts needing bulleted subsections for unrelated modules, treat that friction as a gift. Splitting the refactor from the behavioral change takes ten minutes now and turns a stalled review into a five-minute approval.
+
+## A reusable three-line template
+
+- **Why:** Link the ticket or state the concrete failure mode.
+- **Trade-off:** Name the shortcut you took or the constraint you honored.
+- **Verify:** Give the exact command or route to exercise the change.

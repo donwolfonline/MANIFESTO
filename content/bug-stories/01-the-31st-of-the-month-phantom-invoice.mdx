@@ -1,0 +1,39 @@
+---
+exhibitNumber: "01"
+title: The 31st-of-the-Month Phantom Invoice
+slug: the-31st-of-the-month-phantom-invoice
+date: 2024-06-15
+year: 2024
+category: off-by-one
+tags:
+  - off-by-one
+  - postmortem
+summary: Used <= instead of < on a 50-record batch cursor, dropping every 50th customer.
+draft: false
+cause: Used <= instead of < on a 50-record batch cursor, dropping every 50th customer.
+cost: 4 hours of manual billing reconciliation and 19 apologetic emails.
+lesson: Test boundary counts (0, 1, N-1, N, N+1), never only a tidy sample of 12.
+snippet:
+  filename: billing-batch.ts
+  language: ts
+  contextBefore:
+    - "export function slicePage<T>(rows: T[], page: number, size = 50): T[] {"
+    - "  const start = page * size;"
+  brokenLine: "  return rows.slice(start, start + size - 1);"
+  fixedLine: "  return rows.slice(start, start + size);"
+  contextAfter:
+    - "}"
+  brokenNote: Array.prototype.slice end index is already exclusive—subtracting 1 drops the last item
+    on every page.
+  fixedNote: Passing start + size returns all 50 items cleanly without losing the boundary element.
+---
+
+Every month-end billing run processed customers in tidy pages of fifty, logging green checkmarks from start to finish. Nobody noticed anything missing until a small architecture studio wrote in asking why they had not been billed for two consecutive months.
+
+## What went wrong
+
+The batch worker advanced its cursor with an inclusive upper bound on one line and an exclusive slice on the next. Every customer sitting cleanly at index 50, 100, or 150 fell straight through the seam between pages.
+
+## The lasting change
+
+Our entire unit test suite ran against twelve seeded fixtures—never once reaching fifty-one. Adding a single boundary test with fifty-one records exposed the bug in four milliseconds.

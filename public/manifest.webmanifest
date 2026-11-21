@@ -1,0 +1,102 @@
+{
+  "id": "/",
+  "name": "WORKING_COPY.md — A Field Manual for Working Engineers",
+  "short_name": "WORKING_COPY",
+  "description": "A quiet field manual for working software engineers—honest about tight deadlines, shifting stacks, and self-doubt, and stubbornly devoted to making software that holds up.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#201e1f",
+  "theme_color": "#201e1f",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["developer tools", "books", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Principle of the Day",
+      "short_name": "Today",
+      "description": "Read today's deterministic daily engineering principle",
+      "url": "/today",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Quiet Focus Room",
+      "short_name": "Focus",
+      "description": "Start a 25/5 focus timer with ambient sound and rotating principles",
+      "url": "/focus",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Naming Things Game",
+      "short_name": "Naming",
+      "description": "Play 10 rounds of the 2am identifier readability challenge",
+      "url": "/naming",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Interactive Terminal",
+      "short_name": "Terminal",
+      "description": "Open the interactive working_copy.md shell",
+      "url": "/terminal",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

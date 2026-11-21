@@ -1,0 +1,39 @@
+---
+exhibitNumber: "08"
+title: Zero-Indexed December
+slug: zero-indexed-december
+date: 2024-06-15
+year: 2024
+category: off-by-one
+tags:
+  - off-by-one
+  - postmortem
+summary: Passed human month 12 into JavaScript's 0-indexed Date constructor, silently rolling into January.
+draft: false
+cause: Passed human month 12 into JavaScript's 0-indexed Date constructor, silently rolling into January.
+cost: Three days of mysteriously empty December revenue charts before anyone checked the year.
+lesson: JavaScript silently overflows out-of-range Date arguments instead of throwing—wrap it once
+  and never call it raw.
+snippet:
+  filename: month-range.ts
+  language: ts
+  contextBefore:
+    - // humanMonth is 1 (Jan) through 12 (Dec)
+    - "export function startOfHumanMonth(year: number, humanMonth: number): Date {"
+  brokenLine: "  return new Date(year, humanMonth, 1);"
+  fixedLine: "  return new Date(year, humanMonth - 1, 1);"
+  contextAfter:
+    - "}"
+  brokenNote: JS Date months are 0-indexed (0..11), so month 12 overflows silently to January of the next year.
+  fixedNote: Subtracting 1 maps human month 12 cleanly onto December (index 11).
+---
+
+Monthly archive exports accepted a `?month=12` query parameter from the dashboard dropdown. Everything looked healthy from January through November, silently pulling one month ahead without anyone noticing empty future buckets.
+
+## What went wrong
+
+When December arrived, `new Date(2024, 12, 1)` did not throw a range error—it cheerfully normalized month twelve into January 1, 2025, rendering a completely blank chart right during year-end review.
+
+## The lasting change
+
+Wrapping month conversion in one tested helper with explicit `1..12` bounds validation kept zero-indexed Date math quarantined to a single file.

@@ -2,12 +2,10 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from 'react';
-import Lenis from 'lenis';
+import { usePrefersReducedMotion } from './useViewportActivity';
 
 interface ScrollToOptions {
   offset?: number;
@@ -16,92 +14,51 @@ interface ScrollToOptions {
   force?: boolean;
 }
 
-interface SmoothScrollContextValue {
-  lenis: Lenis | null;
-  isReducedMotion: boolean;
-  scrollTo: (target: string | number | HTMLElement, options?: ScrollToOptions) => void;
+export interface ScrollController {
+  stop: () => void;
+  start: () => void;
   resize: () => void;
 }
 
+interface SmoothScrollContextValue {
+  lenis: ScrollController | null;
+  isReducedMotion: boolean;
+  scrollTo: (
+    target: string | number | HTMLElement,
+    options?: ScrollToOptions,
+  ) => void;
+  resize: () => void;
+}
+
+const NOOP_CONTROLLER: ScrollController = {
+  stop: () => {},
+  start: () => {},
+  resize: () => {},
+};
+
 const SmoothScrollContext = createContext<SmoothScrollContextValue>({
-  lenis: null,
+  lenis: NOOP_CONTROLLER,
   isReducedMotion: false,
   scrollTo: () => {},
   resize: () => {},
 });
 
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
+/**
+ * Native smooth-scroll provider.
+ * Replaces the always-on 60fps Lenis requestAnimationFrame loop with native
+ * browser scrolling so idle tabs and mobile touch scrolling incur zero JS overhead.
+ */
 export function SmoothScrollProvider({ children }: { children: ReactNode }) {
-  const [lenis, setLenis] = useState<Lenis | null>(null);
-  const [isReducedMotion, setIsReducedMotion] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-  });
-
-  // Subscribe to OS-level prefers-reduced-motion changes dynamically
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsReducedMotion(event.matches);
-    };
-
-    setIsReducedMotion(mediaQuery.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  // Instantiate Lenis only when reduced motion is NOT active
-  useEffect(() => {
-    if (isReducedMotion) {
-      setLenis(null);
-      return;
-    }
-
-    const instance = new Lenis({
-      lerp: 0.16,
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-      syncTouch: false,
-      wheelMultiplier: 1.15,
-      touchMultiplier: 1.1,
-    });
-
-    setLenis(instance);
-
-    let rafId = 0;
-    const raf = (time: number) => {
-      instance.raf(time);
-      rafId = window.requestAnimationFrame(raf);
-    };
-    rafId = window.requestAnimationFrame(raf);
-
-    return () => {
-      window.cancelAnimationFrame(rafId);
-      instance.destroy();
-      setLenis(null);
-    };
-  }, [isReducedMotion]);
+  const isReducedMotion = usePrefersReducedMotion();
 
   const scrollTo = useCallback(
     (target: string | number | HTMLElement, options?: ScrollToOptions) => {
       const offset = options?.offset ?? -96;
+      const behavior: ScrollBehavior =
+        isReducedMotion || options?.immediate ? 'auto' : 'smooth';
 
-      if (lenis && !isReducedMotion) {
-        lenis.start();
-        lenis.scrollTo(target, {
-          offset,
-          immediate: options?.immediate ?? false,
-          duration: options?.duration,
-          force: options?.force ?? true,
-        });
-        return;
-      }
-
-      // Native instant fallback when prefers-reduced-motion is enabled
       if (typeof target === 'number') {
-        window.scrollTo({ top: target, behavior: 'auto' });
+        window.scrollTo({ top: Math.max(0, target + offset), behavior });
         return;
       }
 
@@ -112,19 +69,22 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
 
       if (el) {
         const top = el.getBoundingClientRect().top + window.scrollY + offset;
-        window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+        window.scrollTo({ top: Math.max(0, top), behavior });
       }
     },
-    [lenis, isReducedMotion],
+    [isReducedMotion],
   );
 
-  const resize = useCallback(() => {
-    lenis?.resize();
-  }, [lenis]);
+  const resize = useCallback(() => {}, []);
 
   const value = useMemo(
-    () => ({ lenis, isReducedMotion, scrollTo, resize }),
-    [lenis, isReducedMotion, scrollTo, resize],
+    () => ({
+      lenis: NOOP_CONTROLLER,
+      isReducedMotion,
+      scrollTo,
+      resize,
+    }),
+    [isReducedMotion, scrollTo, resize],
   );
 
   return (
@@ -134,6 +94,7 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook is colocated with its provider
 export function useLenis(): SmoothScrollContextValue {
   return useContext(SmoothScrollContext);
 }

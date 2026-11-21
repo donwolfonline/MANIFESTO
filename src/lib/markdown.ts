@@ -1,3 +1,5 @@
+import { resolveSiteAuthor, SITE_CONFIG } from '../site.config';
+
 export interface ManifestoMeta {
   filename: string;
   title: string;
@@ -83,19 +85,13 @@ export function parseManifesto(rawSource: string): ParsedManifesto {
   ].filter((line): line is string => Boolean(line));
 
   const meta: ManifestoMeta = {
-    filename: metaRecord.filename || 'manifesto.md',
-    title: metaRecord.title || 'MANIFESTO.md',
+    filename: metaRecord.filename || SITE_CONFIG.filename,
+    title: metaRecord.title || SITE_CONFIG.title,
     subtitles:
-      subtitles.length > 0
-        ? subtitles
-        : [
-            'a working manifesto. notes-to-self, mostly.',
-            'written in plain text so it outlives the tools that rendered it.',
-            'quiet type, generous whitespace, and one accent used sparingly.',
-          ],
-    author: metaRecord.author || 'Your Name',
-    date: metaRecord.date || 'Nov 2026',
-    location: metaRecord.location || 'Plain Text, UTF-8',
+      subtitles.length > 0 ? subtitles : [...SITE_CONFIG.subtitles],
+    author: resolveSiteAuthor(metaRecord.author),
+    date: metaRecord.date || SITE_CONFIG.date,
+    location: metaRecord.location || SITE_CONFIG.location,
   };
 
   // Extract ## chapter headings for the table of contents

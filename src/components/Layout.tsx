@@ -1,16 +1,13 @@
-import { useCallback, useState, type ReactNode } from 'react';
-import { CustomCursor } from './CustomCursor';
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import type { ManifestoMeta, ManifestoStats } from '../lib/markdown';
 import { FilmGrain } from './FilmGrain';
 import { Footer } from './Footer';
 import { Header, type ViewMode } from './Header';
-import {
-  IndexOverlay,
-  type OverlayOrigin,
-  type OverlaySectionItem,
-} from './IndexOverlay';
-import { Preloader } from './Preloader';
-import { ReadingProgress } from './ReadingProgress';
-import type { ManifestoMeta, ManifestoStats } from '../lib/markdown';
+import type { OverlayOrigin, OverlaySectionItem } from './IndexOverlay';
+
+const LazyIndexOverlay = lazy(() =>
+  import('./IndexOverlay').then((mod) => ({ default: mod.IndexOverlay })),
+);
 
 interface LayoutProps {
   meta: ManifestoMeta;
@@ -21,7 +18,18 @@ interface LayoutProps {
   onSelectSection: (sectionId: string) => void;
   readingItems?: { number: number; title: string }[];
   onSelectReadingItem?: (itemNumber: number) => void;
+  onOpenTerminal?: () => void;
+  onOpenMuseum?: () => void;
+  onOpenCommitLog?: () => void;
+  onOpenToday?: () => void;
+  onOpenPrivacy?: () => void;
+  onNavigateRoute?: (target: string) => void;
+  skipPreloader?: boolean;
   onPreloaderComplete?: () => void;
+  /** When true (in Reading Mode), hides header, custom cursor, and footer chrome */
+  hideChrome?: boolean;
+  /** When true, the persistent Header & Field Index are already mounted at the App root */
+  hasGlobalHeader?: boolean;
   children: ReactNode;
 }
 
@@ -34,7 +42,15 @@ export function Layout({
   onSelectSection,
   readingItems,
   onSelectReadingItem,
+  onOpenTerminal,
+  onOpenMuseum,
+  onOpenCommitLog,
+  onOpenToday,
+  onOpenPrivacy,
+  onNavigateRoute,
   onPreloaderComplete,
+  hideChrome = false,
+  hasGlobalHeader = false,
   children,
 }: LayoutProps) {
   const [indexOpen, setIndexOpen] = useState(false);
@@ -42,6 +58,11 @@ export function Layout({
     x: 0,
     y: 0,
   });
+
+  // Immediately signal ready so Hero renders with zero blocking preloader delay (fast LCP)
+  useEffect(() => {
+    onPreloaderComplete?.();
+  }, [onPreloaderComplete]);
 
   const handleToggleIndex = useCallback((origin: OverlayOrigin) => {
     setIndexOrigin(origin);
@@ -73,42 +94,53 @@ export function Layout({
         Skip to the text
       </a>
 
-      <Preloader
-        durationMs={450}
-        label={`loading ~/${meta.filename}`}
-        onComplete={onPreloaderComplete}
-      />
-      <CustomCursor readSectionSelector="#read" readLabel="read" />
       <FilmGrain />
-      <ReadingProgress height={2} color="var(--color-accent)" smooth={false} />
 
-      <Header
-        filename={meta.filename}
-        viewMode={viewMode}
-        onViewModeChange={onViewModeChange}
-        indexLabel="field index"
-        isIndexOpen={indexOpen}
-        onToggleIndex={handleToggleIndex}
-      />
+      {!hideChrome && !hasGlobalHeader && (
+        <Header
+          filename={meta.filename}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          indexLabel="field index"
+          isIndexOpen={indexOpen}
+          onToggleIndex={handleToggleIndex}
+          onNavigateRoute={onNavigateRoute}
+          onOpenTerminal={onOpenTerminal}
+          onOpenMuseum={onOpenMuseum}
+          onOpenCommitLog={onOpenCommitLog}
+          onOpenToday={onOpenToday}
+        />
+      )}
 
-      <IndexOverlay
-        isOpen={indexOpen}
-        onClose={handleCloseIndex}
-        origin={indexOrigin}
-        sections={sections}
-        onSelectSection={onSelectSection}
-        readingItems={readingItems}
-        onSelectReadingItem={onSelectReadingItem}
-        filename={meta.filename}
-        viewMode={viewMode}
-        onViewModeChange={onViewModeChange}
-      />
+      {!hideChrome && !hasGlobalHeader && indexOpen && (
+        <Suspense fallback={null}>
+          <LazyIndexOverlay
+            isOpen={indexOpen}
+            onClose={handleCloseIndex}
+            origin={indexOrigin}
+            sections={sections}
+            onSelectSection={onSelectSection}
+            readingItems={readingItems}
+            onSelectReadingItem={onSelectReadingItem}
+            filename={meta.filename}
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        </Suspense>
+      )}
 
       <main id="manifesto-content" className="flex-1">
         {children}
       </main>
 
-      <Footer meta={meta} stats={stats} />
+      {!hideChrome && (
+        <Footer
+          meta={meta}
+          stats={stats}
+          onOpenPrivacy={onOpenPrivacy}
+          onNavigateRoute={onNavigateRoute}
+        />
+      )}
     </div>
   );
 }
