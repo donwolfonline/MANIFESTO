@@ -39,11 +39,13 @@ export function FullBleedTransition({
   const imgRef = useRef<HTMLImageElement | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  // Warm-fetch and decode the tiny 32KB WebP during idle time after initial render
+  // Warm-fetch and decode the tiny 32KB WebP after initial window load settles
   useEffect(() => {
     const preloadSrc = webpSrc || imageSrc;
     if (!preloadSrc) return;
 
+    let timer = 0;
+    let idleId = 0;
     const warmDecode = () => {
       const preloader = new Image();
       preloader.decoding = 'async';
@@ -53,19 +55,36 @@ export function FullBleedTransition({
       }
     };
 
-    const w = window as Window & {
-      requestIdleCallback?: (
-        cb: () => void,
-        opts?: { timeout: number },
-      ) => number;
-      cancelIdleCallback?: (id: number) => void;
+    const scheduleWarm = () => {
+      const w = window as Window & {
+        requestIdleCallback?: (
+          cb: () => void,
+          opts?: { timeout: number },
+        ) => number;
+        cancelIdleCallback?: (id: number) => void;
+      };
+      if (typeof w.requestIdleCallback === 'function') {
+        idleId = w.requestIdleCallback(warmDecode, { timeout: 2500 });
+      } else {
+        timer = window.setTimeout(warmDecode, 2200);
+      }
     };
-    if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(warmDecode, { timeout: 1500 });
-      return () => w.cancelIdleCallback?.(id);
+
+    if (document.readyState === 'complete') {
+      scheduleWarm();
+    } else {
+      window.addEventListener('load', scheduleWarm, { once: true });
     }
-    const timer = window.setTimeout(warmDecode, 600);
-    return () => window.clearTimeout(timer);
+
+    return () => {
+      window.removeEventListener('load', scheduleWarm);
+      if (timer) window.clearTimeout(timer);
+      if (idleId) {
+        (
+          window as Window & { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback?.(idleId);
+      }
+    };
   }, [webpSrc, imageSrc]);
 
   // Scrub clip-path and image scale directly; pauses automatically when off-screen or tab is hidden

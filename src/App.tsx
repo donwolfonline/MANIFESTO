@@ -43,6 +43,7 @@ import {
   LazyTerminalPage,
   LazyTodayPage,
   LazyWallPage,
+  preloadTarget,
 } from './lib/routePreload';
 import {
   BrowserRouter,
@@ -65,7 +66,11 @@ import type {
 } from './components/IndexOverlay';
 import { RouteSkeleton } from './components/RouteSkeletons';
 import { RouteErrorBoundary } from './components/RouteStateBox';
-import type { RouteTransitionStageProps } from './components/RouteTransitionCurtain';
+import type { RouteTransitionOverlayProps } from './components/RouteTransitionCurtain';
+
+if (typeof window !== 'undefined' && window.location.pathname === '/') {
+  preloadTarget('home');
+}
 
 const LazyPageShell = lazy(() =>
   import('./components/PageShell').then((mod) => ({
@@ -157,24 +162,69 @@ function ManifestoApp() {
   );
   const [hasFinePointer, setHasFinePointer] = useState(false);
 
-  // Dynamically load Framer Motion RouteTransitionStage right after initial mount
-  // so vendor-motion is never added to dist/index.html's initial critical modulepreloads
-  const [TransitionStage, setTransitionStage] =
-    useState<ComponentType<RouteTransitionStageProps> | null>(null);
+  // Dynamically load Framer Motion RouteTransitionOverlay on first interaction,
+  // route change, or after initial load settles so vendor-motion (42 KB gzip)
+  // never competes with Hero LCP or remounts already-mounted route content.
+  const [TransitionOverlay, setTransitionOverlay] =
+    useState<ComponentType<RouteTransitionOverlayProps> | null>(null);
 
   useEffect(() => {
+    if (TransitionOverlay) return;
     let cancelled = false;
-    import('./components/RouteTransitionCurtain')
-      .then((mod) => {
-        if (!cancelled) {
-          setTransitionStage(() => mod.RouteTransitionStage);
-        }
-      })
-      .catch(() => {});
+    let timer = 0;
+
+    const loadTransitionOverlay = () => {
+      import('./components/RouteTransitionCurtain')
+        .then((mod) => {
+          if (!cancelled) {
+            setTransitionOverlay(() => mod.RouteTransitionOverlay);
+          }
+        })
+        .catch(() => {});
+    };
+
+    if (transitionCount > 0) {
+      loadTransitionOverlay();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const scheduleIdleLoad = () => {
+      timer = window.setTimeout(loadTransitionOverlay, 2800);
+    };
+
+    const onFirstIntent = () => {
+      window.removeEventListener('pointerdown', onFirstIntent);
+      window.removeEventListener('pointerover', onFirstIntent);
+      window.removeEventListener('keydown', onFirstIntent);
+      loadTransitionOverlay();
+    };
+    window.addEventListener('pointerdown', onFirstIntent, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener('pointerover', onFirstIntent, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener('keydown', onFirstIntent, { once: true });
+
+    if (document.readyState === 'complete') {
+      scheduleIdleLoad();
+    } else {
+      window.addEventListener('load', scheduleIdleLoad, { once: true });
+    }
+
     return () => {
       cancelled = true;
+      window.removeEventListener('pointerdown', onFirstIntent);
+      window.removeEventListener('pointerover', onFirstIntent);
+      window.removeEventListener('keydown', onFirstIntent);
+      window.removeEventListener('load', scheduleIdleLoad);
+      if (timer) window.clearTimeout(timer);
     };
-  }, []);
+  }, [TransitionOverlay, transitionCount]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -1078,18 +1128,28 @@ function ManifestoApp() {
         </Suspense>
       )}
 
-      {/* Routed content wrapped in Framer Motion AnimatePresence (mode="wait") + 2-panel dark curtain */}
-      {TransitionStage ? (
-        <TransitionStage
-          pathname={pathname}
-          transitionCount={transitionCount}
-          onTransitionSettled={handleTransitionSettled}
+      {/* Persistent route wrapper keeps page DOM mounted cleanly while lazy curtain overlay draws above */}
+      <div className="relative">
+        {TransitionOverlay && (
+          <TransitionOverlay
+            pathname={pathname}
+            transitionCount={transitionCount}
+            onTransitionSettled={handleTransitionSettled}
+          />
+        )}
+        <div
+          key={pathname}
+          data-testid="route-transition-page"
+          data-route-path={pathname}
+          className={
+            transitionCount > 0 && !prefersReducedMotion
+              ? 'route-stagger-enter'
+              : undefined
+          }
         >
           {wrappedPageContent}
-        </TransitionStage>
-      ) : (
-        wrappedPageContent
-      )}
+        </div>
+      </div>
 
       <Suspense fallback={null}>
         <LazyPwaUpdateToast />

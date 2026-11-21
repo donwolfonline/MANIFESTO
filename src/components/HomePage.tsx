@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import {
   MANIFESTO_ITEMS,
   serializeManifestoToMarkdown,
@@ -11,16 +11,31 @@ import {
 } from '../lib/markdown';
 import { useReadingMode } from '../lib/readingMode';
 import { LazyRawMarkdownView } from '../lib/routePreload';
-import { ClosingSection } from './ClosingSection';
-import { FullBleedTransition } from './FullBleedTransition';
 import type { ViewMode } from './Header';
 import { Hero } from './Hero';
 import type { OverlaySectionItem } from './IndexOverlay';
 import { Layout } from './Layout';
-import { PrincipleOfTheDayCard } from './PrincipleOfTheDayCard';
 import { ReadingModeBar } from './ReadingModeBar';
 import { ReadingSection } from './ReadingSection';
-import { StatementSequence } from './StatementSequence';
+
+const LazyPrincipleOfTheDayCard = lazy(() =>
+  import('./PrincipleOfTheDayCard').then((mod) => ({
+    default: mod.PrincipleOfTheDayCard,
+  })),
+);
+const LazyStatementSequence = lazy(() =>
+  import('./StatementSequence').then((mod) => ({
+    default: mod.StatementSequence,
+  })),
+);
+const LazyFullBleedTransition = lazy(() =>
+  import('./FullBleedTransition').then((mod) => ({
+    default: mod.FullBleedTransition,
+  })),
+);
+const LazyClosingSection = lazy(() =>
+  import('./ClosingSection').then((mod) => ({ default: mod.ClosingSection })),
+);
 
 export interface HomePageProps {
   meta: ManifestoMeta;
@@ -114,22 +129,26 @@ export function HomePage({
             />
           </div>
           {!isReadingMode && (
-            <>
-              <PrincipleOfTheDayCard
+            <Suspense fallback={null}>
+              <LazyPrincipleOfTheDayCard
                 items={items}
                 onOpenToday={onOpenToday}
                 onSelectReadingItem={onSelectReadingItem}
               />
-              <StatementSequence />
-              <FullBleedTransition />
-            </>
+              <LazyStatementSequence />
+              <LazyFullBleedTransition />
+            </Suspense>
           )}
           <ReadingSection
             items={items}
             onOpenNote={onOpenNote}
             readingMode={isReadingMode}
           />
-          {!isReadingMode && <ClosingSection />}
+          {!isReadingMode && (
+            <Suspense fallback={null}>
+              <LazyClosingSection />
+            </Suspense>
+          )}
         </>
       ) : (
         <Suspense

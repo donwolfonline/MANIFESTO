@@ -156,14 +156,23 @@ export function usePwaUpdater(): UsePwaUpdaterResult {
       });
     };
 
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((reg) => {
-        observeRegistration(reg);
-      })
-      .catch(() => {
-        // Ignore SW registration failure in unsupported/restricted environments
-      });
+    const registerSw = () => {
+      if (cancelled) return;
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          observeRegistration(reg);
+        })
+        .catch(() => {
+          // Ignore SW registration failure in unsupported/restricted environments
+        });
+    };
+
+    if (document.readyState === 'complete') {
+      registerSw();
+    } else {
+      window.addEventListener('load', registerSw, { once: true });
+    }
 
     let hadController = Boolean(navigator.serviceWorker.controller);
 
@@ -186,6 +195,7 @@ export function usePwaUpdater(): UsePwaUpdaterResult {
 
     return () => {
       cancelled = true;
+      window.removeEventListener('load', registerSw);
       window.removeEventListener(
         PWA_UPDATE_AVAILABLE_EVENT,
         handleCustomUpdate,

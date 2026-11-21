@@ -307,8 +307,8 @@ export function Hero({ meta, title, subtitles, ready = true }: HeroProps) {
                 text={line}
                 prefix=">"
                 start={typingReady && activeLine >= index}
-                delayMs={index === 0 ? 120 : 180}
-                charIntervalMs={24}
+                delayMs={index === 0 ? 40 : 80}
+                charIntervalMs={14}
                 keepCursorOnComplete={isFinalLine}
                 onComplete={() =>
                   setActiveLine((prev) => Math.max(prev, index + 1))
