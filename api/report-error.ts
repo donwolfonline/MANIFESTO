@@ -9,7 +9,7 @@ import {
   setApiSecurityHeaders,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/wallStore';
+} from './_lib/wallStore.js';
 
 const ERROR_LIMIT_PER_HOUR = 20;
 const ONE_HOUR_MS = 60 * 60 * 1000;

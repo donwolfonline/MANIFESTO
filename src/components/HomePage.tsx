@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import {
   MANIFESTO_ITEMS,
   serializeManifestoToMarkdown,
@@ -58,6 +58,32 @@ export interface HomePageProps {
   onPreloaderComplete: () => void;
   preloaderDone: boolean;
   hasGlobalHeader?: boolean;
+}
+
+/**
+ * Re-aligns native anchor jumps (such as #read from the skip link) after
+ * lazy above-fold sections finish mounting so tall dynamic chunks never push
+ * the target section back below the viewport.
+ */
+function HomeHashScrollSync() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const rawHash = window.location.hash;
+    if (!rawHash || rawHash === '#') return;
+    const targetId = rawHash.slice(1);
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      const top = Math.max(
+        0,
+        target.getBoundingClientRect().top + window.scrollY - 88,
+      );
+      window.scrollTo({ top, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  return null;
 }
 
 export function HomePage({
@@ -129,7 +155,7 @@ export function HomePage({
             />
           </div>
           {!isReadingMode && (
-            <Suspense fallback={null}>
+            <Suspense fallback={<div aria-hidden="true" className="min-h-[120dvh]" />}>
               <LazyPrincipleOfTheDayCard
                 items={items}
                 onOpenToday={onOpenToday}
@@ -137,6 +163,7 @@ export function HomePage({
               />
               <LazyStatementSequence />
               <LazyFullBleedTransition />
+              <HomeHashScrollSync />
             </Suspense>
           )}
           <ReadingSection

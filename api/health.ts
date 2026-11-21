@@ -4,7 +4,7 @@ import {
   supabaseFetch,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/wallStore';
+} from './_lib/wallStore.js';
 
 /**
  * Lightweight uptime health check endpoint (`GET /api/health`).

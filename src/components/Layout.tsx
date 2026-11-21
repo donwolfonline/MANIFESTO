@@ -83,6 +83,18 @@ export function Layout({
     >
       <a
         href="#read"
+        onClick={() => {
+          window.requestAnimationFrame(() => {
+            const target = document.getElementById('read');
+            if (!target) return;
+            const top = Math.max(
+              0,
+              target.getBoundingClientRect().top + window.scrollY - 88,
+            );
+            window.scrollTo({ top, behavior: 'auto' });
+            target.focus({ preventScroll: true });
+          });
+        }}
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:font-mono focus:uppercase"
         style={{
           zIndex: 'var(--z-progress)',

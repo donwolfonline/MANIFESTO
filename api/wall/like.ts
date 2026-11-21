@@ -8,7 +8,7 @@ import {
   supabaseFetch,
   type ApiRequest,
   type ApiResponse,
-} from '../_lib/wallStore';
+} from '../_lib/wallStore.js';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

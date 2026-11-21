@@ -12,7 +12,7 @@ import {
   type ApiRequest,
   type ApiResponse,
   type WallSubmissionRow,
-} from '../_lib/wallStore';
+} from '../_lib/wallStore.js';
 
 const ADMIN_AUTH_FAIL_LIMIT = 5;
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;

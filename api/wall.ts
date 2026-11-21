@@ -12,7 +12,7 @@ import {
   type ApiRequest,
   type ApiResponse,
   type WallSubmissionRow,
-} from './_lib/wallStore';
+} from './_lib/wallStore.js';
 
 const SUBMIT_LIMIT_PER_HOUR = 3;
 const ONE_HOUR_MS = 60 * 60 * 1000;
