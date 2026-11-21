@@ -13,9 +13,9 @@ permissions:
 jobs:
   uptime-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Probe homepage, security headers, and /api/health
-        id: probe
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           UPTIME_ALERT_WEBHOOK_URL: ${{ secrets.UPTIME_ALERT_WEBHOOK_URL }}
@@ -31,7 +31,10 @@ jobs:
             const errors = [];
 
             // 1. Check homepage availability, expected content, and required security headers
-            const homeRes = await fetch(siteUrl + "/", { redirect: "follow" });
+            const homeRes = await fetch(siteUrl + "/", {
+              redirect: "follow",
+              signal: AbortSignal.timeout(15000),
+            });
             if (homeRes.status !== 200) {
               errors.push(`GET / returned HTTP ${homeRes.status}`);
             }
@@ -46,7 +49,9 @@ jobs:
             }
 
             // 2. Check /api/health endpoint
-            const healthRes = await fetch(siteUrl + "/api/health");
+            const healthRes = await fetch(siteUrl + "/api/health", {
+              signal: AbortSignal.timeout(15000),
+            });
             if (healthRes.status !== 200) {
               errors.push(`GET /api/health returned HTTP ${healthRes.status}`);
             } else {
@@ -66,6 +71,7 @@ jobs:
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ text: summary, content: summary }),
+                  signal: AbortSignal.timeout(10000),
                 }).catch(() => {});
               }
               process.exit(1);

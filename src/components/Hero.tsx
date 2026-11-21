@@ -329,11 +329,16 @@ export function Hero({ meta, title, subtitles, ready = true }: HeroProps) {
           tabIndex={hasScrolled ? -1 : 0}
           onClick={handleScrollDown}
           aria-label="Scroll down to manifesto statements"
-          className={`group inline-flex flex-col items-center gap-3 transition-all duration-300 ${
+          className={`group inline-flex flex-col items-center gap-3 transition-all ${
             hasScrolled
-              ? 'opacity-0 pointer-events-none translate-y-2'
+              ? 'opacity-0 invisible pointer-events-none translate-y-2'
               : 'opacity-100 translate-y-0'
           }`}
+          style={{
+            transitionDuration: prefersReducedMotion
+              ? '0ms'
+              : 'var(--duration-base)',
+          }}
         >
           <span
             className="font-mono lowercase tracking-[var(--tracking-micro)] transition-colors"

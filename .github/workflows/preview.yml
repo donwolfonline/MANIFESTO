@@ -15,10 +15,6 @@ concurrency:
   group: preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   deploy-preview:
     name: Deploy preview (Vercel)
@@ -34,29 +30,62 @@ jobs:
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check Vercel deployment secrets
+        id: vercel-config
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::notice::VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID secret is not set; skipping Vercel preview deployment."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: actions/setup-node@v4
+      - if: steps.vercel-config.outputs.ready == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.vercel-config.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      - if: steps.vercel-config.outputs.ready == 'true'
+        run: npm ci
 
       - name: Pull Vercel preview environment
-        run: npx --yes vercel@latest pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        if: steps.vercel-config.outputs.ready == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@latest pull --yes --environment=preview --token="$VERCEL_TOKEN"
 
       - name: Build with Vercel
-        run: npx --yes vercel@latest build --token=${{ secrets.VERCEL_TOKEN }}
+        if: steps.vercel-config.outputs.ready == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@latest build --token="$VERCEL_TOKEN"
 
       - name: Deploy prebuilt preview
         id: deploy
+        if: steps.vercel-config.outputs.ready == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          url=$(npx --yes vercel@latest deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(npx --yes vercel@latest deploy --prebuilt --token="$VERCEL_TOKEN" | tail -n 1 | tr -d '[:space:]')
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Preview deployed: $url"
 
       - name: Comment preview URL on PR
+        if: steps.vercel-config.outputs.ready == 'true' && steps.deploy.outputs.url != ''
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.url }}
@@ -91,6 +120,7 @@ jobs:
   lighthouse:
     name: Lighthouse CI
     needs: deploy-preview
+    if: needs.deploy-preview.outputs.url != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -109,15 +139,20 @@ jobs:
           # only if preview deployments are password/SSO protected.
           BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
-          headers='{}'
+          set -euo pipefail
           if [ -n "$BYPASS" ]; then
-            headers="{\"x-vercel-protection-bypass\":\"$BYPASS\"}"
+            headers=$(node -e 'process.stdout.write(JSON.stringify({ "x-vercel-protection-bypass": process.env.BYPASS }))')
+            npx --yes @lhci/cli@0.15.x autorun \
+              --collect.url="$PREVIEW_URL/" \
+              --collect.url="$PREVIEW_URL/wall" \
+              --collect.url="$PREVIEW_URL/privacy" \
+              --collect.settings.extraHeaders="$headers"
+          else
+            npx --yes @lhci/cli@0.15.x autorun \
+              --collect.url="$PREVIEW_URL/" \
+              --collect.url="$PREVIEW_URL/wall" \
+              --collect.url="$PREVIEW_URL/privacy"
           fi
-          npx --yes @lhci/cli@0.15.x autorun \
-            --collect.url="$PREVIEW_URL/" \
-            --collect.url="$PREVIEW_URL/wall" \
-            --collect.url="$PREVIEW_URL/privacy" \
-            --collect.settings.extraHeaders="$headers"
 
       - name: Upload full Lighthouse reports
         if: always()

@@ -139,9 +139,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify every job succeeded
+        env:
+          ANY_FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" == "true" ]]; then
-            echo "One or more CI jobs did not succeed: ${{ toJSON(needs) }}"
+          if [ "$ANY_FAILED" = "true" ]; then
+            printf 'One or more CI jobs did not succeed:\n%s\n' "$NEEDS_JSON"
             exit 1
           fi
           echo "All CI jobs passed."

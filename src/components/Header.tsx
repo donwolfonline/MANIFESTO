@@ -408,7 +408,7 @@ export function Header({
             data-magnetic="true"
             onClick={() => scrollTo(0, { offset: 0 })}
             className="header-touch-target group inline-flex items-center gap-2 text-left cursor-pointer min-w-0 shrink-0"
-            aria-label={`~/${filename} — scroll to top of manifesto`}
+            aria-label={`${displayPathLabel} — scroll to top of manifesto`}
           >
             <span
               aria-hidden="true"

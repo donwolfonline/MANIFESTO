@@ -165,7 +165,15 @@ export function usePwaUpdater(): UsePwaUpdaterResult {
         // Ignore SW registration failure in unsupported/restricted environments
       });
 
+    let hadController = Boolean(navigator.serviceWorker.controller);
+
     const handleControllerChange = () => {
+      // Do not reload during initial first-visit installation (`clients.claim()`
+      // fires `controllerchange` when transitioning from null -> first worker).
+      if (!hadController) {
+        hadController = true;
+        return;
+      }
       if (reloadingRef.current) return;
       reloadingRef.current = true;
       window.location.reload();

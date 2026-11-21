@@ -44,7 +44,7 @@ test.describe('Core site flows & accessibility', () => {
     const { consoleErrors, pageErrors } = attachErrorCollector(page);
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
     const skipLink = page.getByRole('link', { name: 'Skip to the text' }).first();
     await skipLink.focus();
@@ -59,36 +59,11 @@ test.describe('Core site flows & accessibility', () => {
     expect(pageErrors, `Page errors on /: ${pageErrors.join('; ')}`).toEqual([]);
   });
 
-  for (const route of ALL_ROUTES) {
+  for (const route of ALL_ROUTES.filter((r) => r.path !== '/wall')) {
     test(`route ${route.path} renders without console errors and passes axe-core`, async ({
       page,
     }) => {
       const { consoleErrors, pageErrors } = attachErrorCollector(page);
-
-      // Stub serverless /api/wall when previewing static dist/ so the browser does not log a 404
-      if (route.path === '/wall') {
-        await page.route('**/api/wall', async (reqRoute) => {
-          await reqRoute.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              items: [
-                {
-                  id: 'e2e-wall-1',
-                  principle:
-                    'Write tests that explain why a change broke, not just that it broke.',
-                  author: 'maya_k',
-                  country_flag: '🇨🇦',
-                  author_url: null,
-                  status: 'approved',
-                  likes: 12,
-                  created_at: '2026-11-18T14:20:00Z',
-                },
-              ],
-            }),
-          });
-        });
-      }
 
       await page.goto(route.path);
       await expect(page.locator('main')).toBeVisible();
@@ -111,6 +86,94 @@ test.describe('Core site flows & accessibility', () => {
       ).toEqual([]);
     });
   }
+
+  test.describe('Wall routes with API mocks (bypassing SW network interception)', () => {
+    // Playwright `page.route` mocks can be bypassed once `/sw.js` claims the client;
+    // block SW registration only in tests that stub `/api/wall`.
+    test.use({ serviceWorkers: 'block' });
+
+    test('route /wall renders without console errors and passes axe-core', async ({
+      page,
+    }) => {
+      const { consoleErrors, pageErrors } = attachErrorCollector(page);
+
+      await page.route('**/api/wall', async (reqRoute) => {
+        await reqRoute.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            items: [
+              {
+                id: 'e2e-wall-1',
+                principle:
+                  'Write tests that explain why a change broke, not just that it broke.',
+                author: 'maya_k',
+                country_flag: '🇨🇦',
+                author_url: null,
+                status: 'approved',
+                likes: 12,
+                created_at: '2026-11-18T14:20:00Z',
+              },
+            ],
+          }),
+        });
+      });
+
+      await page.goto('/wall');
+      await expect(page.locator('main')).toBeVisible();
+
+      const h1 = page.getByRole('heading', { level: 1 }).first();
+      if ((await h1.count()) > 0) {
+        await expect(h1).toBeVisible();
+      }
+
+      await expectNoSeriousA11yViolations(page, '/wall');
+
+      expect(
+        consoleErrors,
+        `Console errors on /wall: ${consoleErrors.join('; ')}`,
+      ).toEqual([]);
+      expect(
+        pageErrors,
+        `Uncaught page errors on /wall: ${pageErrors.join('; ')}`,
+      ).toEqual([]);
+    });
+
+    test('Wall submission shows a pending message', async ({ page }) => {
+      const { consoleErrors, pageErrors } = attachErrorCollector(page);
+
+      await page.route('**/api/wall', async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              message: 'Received—pending moderation before appearing publicly.',
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ items: [] }),
+        });
+      });
+
+      await page.goto('/wall');
+      await page
+        .getByLabel(/your one-line principle/i)
+        .fill('Write tests that explain why a change broke, not just that it broke.');
+      await page.getByLabel(/name or handle/i).fill('playwright_runner');
+      await page.getByRole('button', { name: /submit note/i }).click();
+
+      await expect(page.getByRole('main').getByRole('status')).toContainText(
+        /pending/i,
+      );
+      expect(consoleErrors).toEqual([]);
+      expect(pageErrors).toEqual([]);
+    });
+  });
 
   test('terminal accepts a command and renders output', async ({ page }) => {
     const { consoleErrors, pageErrors } = attachErrorCollector(page);
@@ -136,7 +199,7 @@ test.describe('Core site flows & accessibility', () => {
     const { consoleErrors, pageErrors } = attachErrorCollector(page);
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
     await page.keyboard.press('ControlOrMeta+k');
 
@@ -150,39 +213,6 @@ test.describe('Core site flows & accessibility', () => {
     await expect(page).toHaveURL(/\/shelf$/);
     await expect(dialog).toBeHidden();
 
-    expect(consoleErrors).toEqual([]);
-    expect(pageErrors).toEqual([]);
-  });
-
-  test('Wall submission shows a pending message', async ({ page }) => {
-    const { consoleErrors, pageErrors } = attachErrorCollector(page);
-
-    await page.route('**/api/wall', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            message: 'Received—pending moderation before appearing publicly.',
-          }),
-        });
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ items: [] }),
-      });
-    });
-
-    await page.goto('/wall');
-    await page
-      .getByLabel(/your one-line principle/i)
-      .fill('Write tests that explain why a change broke, not just that it broke.');
-    await page.getByLabel(/name or handle/i).fill('playwright_runner');
-    await page.getByRole('button', { name: /submit note/i }).click();
-
-    await expect(page.getByRole('status')).toContainText(/pending/i);
     expect(consoleErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
   });
@@ -217,7 +247,7 @@ test.describe('Core site flows & accessibility', () => {
     await page.goto(
       '/notes/principles/write-the-pull-request-description-before-hitting-submit',
     );
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
     const toggle = page.getByRole('switch', { name: /reading mode/i });
     await toggle.click();
@@ -260,7 +290,7 @@ test.describe('Core site flows & accessibility', () => {
 
     // 2. Service Worker registration & Update Available toast
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
     const swRegistered = await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) return false;

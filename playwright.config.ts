@@ -57,6 +57,11 @@ export default defineConfig({
       testIgnore: /responsive\.spec\.ts/,
       use: { ...devices['Desktop Safari'], reducedMotion: 'reduce' },
     },
+    {
+      name: 'mobile-chrome',
+      testIgnore: /responsive\.spec\.ts/,
+      use: { ...devices['Pixel 5'], reducedMotion: 'reduce' },
+    },
 
     /* 9 Responsive Device & Viewport Projects */
     {

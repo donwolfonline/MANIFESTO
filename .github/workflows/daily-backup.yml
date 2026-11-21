@@ -12,20 +12,35 @@ permissions:
 jobs:
   backup-wall-db:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
 
       - name: Export and verify gzipped Wall snapshot
+        id: backup
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run db:backup
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "::error::Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret."
+              exit 1
+            fi
+            echo "::notice::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret is not set; skipping scheduled backup."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          npm run db:backup
+          echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Upload 30-day backup artifact
+        if: steps.backup.outputs.created == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: wall-db-backup-${{ github.run_id }}
